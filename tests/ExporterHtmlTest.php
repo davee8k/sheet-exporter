@@ -3,7 +3,7 @@ use SheetExporter\Exporter,
 	SheetExporter\ExporterHtml;
 
 class ExporterHtmlTest extends \PHPUnit\Framework\TestCase {
-	use ExporterBaseTrait;
+	use BasicExporterTrait;
 
 	public function testExport () {
 		$ex = new ExporterHtml('test');

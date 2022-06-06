@@ -10,7 +10,7 @@ class ExporterXlsx extends Exporter {
 	const BORDER_THICK = 4;
 
 	public function __construct ($fileName) {
-		if (!class_exists('ZipArchive')) throw new RuntimeException('Missing ZipArchive extension for XLSX.');
+		if (!class_exists('\ZipArchive')) throw new RuntimeException('Missing ZipArchive extension for XLSX.');
 		parent::__construct($fileName);
 	}
 
@@ -23,9 +23,9 @@ class ExporterXlsx extends Exporter {
 	}
 
 	public function compile () {
-		$zip = new ZipArchive;
+		$zip = new \ZipArchive;
 		$tempFile = $this->createTemp();
-		$res = $zip->open($tempFile, ZipArchive::CREATE);
+		$res = $zip->open($tempFile, \ZipArchive::CREATE);
 		if ($res === true) {
 			$zip->addFromString('[Content_Types].xml', self::XML_HEADER.$this->fileContentTypes());
 			$zip->addFromString('_rels/.rels', self::XML_HEADER.$this->fileRelationships('officeDocument', array('rs'.md5($this->fileName) => '/xl/workbook.xml') ));

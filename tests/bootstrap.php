@@ -1,5 +1,5 @@
 <?php
-require_once 'ExporterBaseTrait.php';
+require_once 'BasicExporterTrait.php';
 
 require_once '../src/SheetExporter/Exporter.php';
 require_once '../src/SheetExporter/ExporterHtml.php';

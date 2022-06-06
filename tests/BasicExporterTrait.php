@@ -5,7 +5,7 @@ use SheetExporter\Exporter,
 	SheetExporter\ExporterOds,
 	SheetExporter\Sheet;
 
-trait ExporterBaseTrait {
+trait BasicExporterTrait {
 
 	public function dataExporters () {
 		return [
@@ -15,7 +15,14 @@ trait ExporterBaseTrait {
 		];
 	}
 
-	private function fillSheets (&$ex) {
+	protected function callPrivateMethod ($obj, $name, $args = []) {
+		$class = new \ReflectionClass($obj);
+		$method = $class->getMethod($name);
+		$method->setAccessible(true);
+		return $method->invokeArgs($obj, $args);
+	}
+
+	protected function fillSheets (Exporter $ex) {
 		$ex->addStyle('one', ['SIZE'=>20, 'ALIGN'=>'right'], ['WIDTH'=>5], 20);
 		$ex->addStyle('two', ['COLOR'=>'#fff000'], ['LEFT'=>['COLOR'=>'#000fff', 'STYLE'=>'dotted', 'WIDTH'=>10]], 40);
 
@@ -34,7 +41,7 @@ trait ExporterBaseTrait {
 	 *
 	 * @dataProvider dataExporters
 	 */
-	public function test_base_export (Exporter $ex) {
+	public function testBaseExport (Exporter $ex) {
 		$this->assertEquals('SheetExporter '.Exporter::VERSION, $ex->getVersion());
 
 		$ex->insertSheet();
@@ -52,7 +59,7 @@ trait ExporterBaseTrait {
 	 *
 	 * @dataProvider dataExporters
 	 */
-	public function test_style_export (Exporter $ex) {
+	public function testStyleExport (Exporter $ex) {
 		$ex->setDefault([], ['COLOR'=>'#fff000', 'LEFT'=>['COLOR'=>'#000fff']]);
 		$ex->addStyle('style');
 		$this->expectException('InvalidArgumentException', 'Style mark must by small alfanumeric only.');

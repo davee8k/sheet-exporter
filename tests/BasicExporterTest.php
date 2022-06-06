@@ -1,7 +1,7 @@
 <?php
 use SheetExporter\Exporter;
 
-class ExporterTest extends \PHPUnit\Framework\TestCase {
+class BasicExporterTest extends \PHPUnit\Framework\TestCase {
 
 	public function testEntityConversion () {
 		$this->assertEquals('&lt;test&gt;&quot;&apos;&amp;hi', Exporter::xmlEntities('<test>"\'&hi'));
@@ -20,17 +20,17 @@ class ExporterTest extends \PHPUnit\Framework\TestCase {
 		$this->assertEquals(10, Exporter::convertSize(1, 'cm', 'mm'));
 	}
 
-	public function testConvertFailA () {
+	public function testConvertUnitFailFirst () {
 		$this->expectException('InvalidArgumentException', 'Unknown input measure unit: fail');
 		Exporter::convertSize(1, 'fail', 'mm');
 	}
 
-	public function testConvertFailB () {
+	public function testConvertUnitFailSecond () {
 		$this->expectException('InvalidArgumentException', 'Unknown output measure unit: fail');
 		Exporter::convertSize(1, 'mm', 'fail');
 	}
 
-	public function testConvertFailC () {
+	public function testConvertBadValueFail () {
 		$this->expectException('InvalidArgumentException', 'Unknown measure value: 10,,');
 		Exporter::convertSize('10,,');
 	}

@@ -9,7 +9,7 @@ namespace SheetExporter;
  * $cell (possible LEFT, RIGHT, TOP, BOTTOM) - [ BACKGROUND, COLOR, WIDTH, STYLE ]
  *
  * @author DaVee
- * @version 0.8551
+ * @version 0.85.52
  * @license https://unlicense.org/
  */
 abstract class Exporter {

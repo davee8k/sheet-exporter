@@ -7,7 +7,7 @@ namespace SheetExporter;
 class ExporterOds extends Exporter {
 
 	public function __construct ($fileName) {
-		if (!class_exists('ZipArchive')) throw new RuntimeException('Missing ZipArchive extension for ODS.');
+		if (!class_exists('\ZipArchive')) throw new RuntimeException('Missing ZipArchive extension for ODS.');
 		parent::__construct($fileName);
 	}
 
@@ -20,9 +20,9 @@ class ExporterOds extends Exporter {
 	}
 
 	public function compile () {
-		$zip = new ZipArchive;
+		$zip = new \ZipArchive;
 		$tempFile = $this->createTemp();
-		$res = $zip->open($tempFile, ZipArchive::CREATE);
+		$res = $zip->open($tempFile, \ZipArchive::CREATE);
 		if ($res === true) {
 			$contentFile = 'content.xml';
 			$zip->addFromString('mimetype', $this->fileMime());
