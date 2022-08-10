@@ -8,7 +8,7 @@ namespace SheetExporter;
  * $font -[ COLOR, SIZE, FAMILY, WEIGHT, ALIGN ]
  * $cell (possible LEFT, RIGHT, TOP, BOTTOM) - [ BACKGROUND, COLOR, WIDTH, STYLE ]
  *
- * @author DaVee
+ * @author DaVee8k
  * @version 0.85.52
  * @license https://unlicense.org/
  */
