@@ -1,6 +1,8 @@
 <?php
 namespace SheetExporter;
 
+use InvalidArgumentException;
+
 /**
  * Simple XLSX/ODS/HTML table exporter
  * XLSX and ODS require ZipArchive class
@@ -9,8 +11,8 @@ namespace SheetExporter;
  * $cell (possible LEFT, RIGHT, TOP, BOTTOM) - [ BACKGROUND, COLOR, WIDTH, STYLE ]
  *
  * @author DaVee8k
- * @version 0.85.52
  * @license https://unlicense.org/
+ * @version 0.85.53
  */
 abstract class Exporter {
 	const VERSION = 0.855;
@@ -73,21 +75,21 @@ abstract class Exporter {
 	 * @param array $font
 	 * @param array $cell
 	 * @param int|null $height
-	 * @throws \InvalidArgumentException
+	 * @throws InvalidArgumentException
 	 */
 	public function addStyle ($mark, $font = array(), $cell = array(), $height = null) {
-		if (!preg_match('/^[a-z0-9\-]+$/', $mark)) throw new \InvalidArgumentException("Style mark must by small alfanumeric only.");
+		if (!preg_match('/^[a-z0-9\-]+$/', $mark)) throw new InvalidArgumentException("Style mark must by small alfanumeric only.");
 		$this->styles[$mark] = array('FONT'=>$font, 'CELL'=>$this->prepareBorder($cell), 'HEIGHT'=>$height);
 	}
 
 	/**
 	 * Insert sheet, throws error if name exist
 	 * @param Sheet $sheet
-	 * @throws \InvalidArgumentException
+	 * @throws InvalidArgumentException
 	 */
 	public function addSheet (Sheet $sheet) {
 		$name = $sheet->getName();
-		if ($this->checkUniqueName($name) != $name) throw new \InvalidArgumentException("Sheet name already exists.");
+		if ($this->checkUniqueName($name) != $name) throw new InvalidArgumentException("Sheet name already exists.");
 		$this->sheets[] = $sheet;
 	}
 
@@ -172,7 +174,7 @@ abstract class Exporter {
 	 * @param string $def	measure unit
 	 * @param string $out	measure unit
 	 * @return string
-	 * @throws \InvalidArgumentException
+	 * @throws InvalidArgumentException
 	 */
 	public static function convertSize ($num, $def = 'pt', $out = null) {
 		if ($out === null) $out = $def;
@@ -194,7 +196,7 @@ abstract class Exporter {
 				case 'in': $val *= 96; break;
 				case 'mm': $val *= 3.78; break;
 				case 'cm': $val *= 37.8; break;
-				default: throw new \InvalidArgumentException("Unknown input measure unit: ".htmlspecialchars($units, ENT_QUOTES));
+				default: throw new InvalidArgumentException("Unknown input measure unit: ".htmlspecialchars($units, ENT_QUOTES));
 			}
 
 			switch ($out) {
@@ -204,9 +206,9 @@ abstract class Exporter {
 				case 'in': return round($val / 96, 4);
 				case 'mm': return round($val / 3.78, 6);
 				case 'cm': return round($val / 37.8, 6);
-				default: throw new \InvalidArgumentException("Unknown output measure unit: ".htmlspecialchars($out, ENT_QUOTES));
+				default: throw new InvalidArgumentException("Unknown output measure unit: ".htmlspecialchars($out, ENT_QUOTES));
 			}
 		}
-		throw new \InvalidArgumentException("Unknown measure value: ".htmlspecialchars($num, ENT_QUOTES));
+		throw new InvalidArgumentException("Unknown measure value: ".htmlspecialchars($num, ENT_QUOTES));
 	}
 }

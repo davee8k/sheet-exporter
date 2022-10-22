@@ -1,6 +1,9 @@
 <?php
 namespace SheetExporter;
 
+use InvalidArgumentException,
+	ZipArchive;
+
 /**
  * Export to Xlsx
  */
@@ -9,11 +12,18 @@ class ExporterXlsx extends Exporter {
 	const BORDER_MEDIUM = 2;
 	const BORDER_THICK = 4;
 
+	/**
+	 * @param string $fileName
+	 * @throws RuntimeException
+	 */
 	public function __construct ($fileName) {
-		if (!class_exists('\ZipArchive')) throw new RuntimeException('Missing ZipArchive extension for XLSX.');
+		if (!class_exists('ZipArchive')) throw new RuntimeException('Missing ZipArchive extension for XLSX.');
 		parent::__construct($fileName);
 	}
 
+	/**
+	 * Create download content
+	 */
 	public function download () {
 		$tempFile = $this->compile();
 		header('Content-Type: application/excel; charset=utf-8');
@@ -22,10 +32,15 @@ class ExporterXlsx extends Exporter {
 		@unlink($tempFile);
 	}
 
+	/**
+	 * Generate Xlsx file
+	 * @return string
+	 * @throws RuntimeException
+	 */
 	public function compile () {
-		$zip = new \ZipArchive;
+		$zip = new ZipArchive;
 		$tempFile = $this->createTemp();
-		$res = $zip->open($tempFile, \ZipArchive::CREATE);
+		$res = $zip->open($tempFile, ZipArchive::CREATE);
 		if ($res === true) {
 			$zip->addFromString('[Content_Types].xml', self::XML_HEADER.$this->fileContentTypes());
 			$zip->addFromString('_rels/.rels', self::XML_HEADER.$this->fileRelationships('officeDocument', array('rs'.md5($this->fileName) => '/xl/workbook.xml') ));
@@ -46,7 +61,7 @@ class ExporterXlsx extends Exporter {
 	 * Data sheet
 	 * @param Sheet $sheet
 	 * @return string
-	 * @throws \InvalidArgumentException
+	 * @throws InvalidArgumentException
 	 */
 	private function fileSheet ($sheet) {
 		ob_start();
@@ -88,7 +103,7 @@ class ExporterXlsx extends Exporter {
 			$k = 0;
 			$move = 0;
 			$class = $sheet->getStyle($num);
-			if ($class && !isset($styles[$class])) throw new \InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
+			if ($class && !isset($styles[$class])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
 
 			echo '    <row r="',++$line,'"',($class && isset($this->styles[$class]['HEIGHT']) && $this->styles[$class]['HEIGHT'] ? ' ht="'.self::convertSize($this->styles[$class]['HEIGHT']).'"' : ''),'>';
 			foreach ($row as $col) {
@@ -120,7 +135,7 @@ class ExporterXlsx extends Exporter {
 						}
 					}
 					if (isset($col['STYLE'])) {
-						if (!isset($styles[$col['STYLE']])) throw new \InvalidArgumentException('Missing style: '.htmlspecialchars($col['STYLE'], ENT_QUOTES));
+						if (!isset($styles[$col['STYLE']])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($col['STYLE'], ENT_QUOTES));
 						$class = $col['STYLE'];
 					}
 					echo $this->getColumn($num, $line, $col['VAL'], $class ? $styles[$class] + 1 : null);
@@ -175,7 +190,7 @@ class ExporterXlsx extends Exporter {
 	}
 
 	/**
-	 *
+	 * Try to convert metric units to ms unit
 	 * @param string|float $size (optimal - mm)
 	 * @return float
 	 */
@@ -372,7 +387,7 @@ class ExporterXlsx extends Exporter {
 	}
 
 	/**
-	 *
+	 * Reformat style for borders
 	 * @param array $cell
 	 * @return array
 	 */
@@ -387,7 +402,7 @@ class ExporterXlsx extends Exporter {
 	}
 
 	/**
-	 *
+	 * Reorder style
 	 * @param int $num
 	 * @param array $item
 	 * @param string $type
@@ -426,7 +441,7 @@ class ExporterXlsx extends Exporter {
 	}
 
 	/**
-	 *
+	 * XLSX basic info file
 	 * @return string
 	 */
 	private function fileContentTypes () {

@@ -1,16 +1,26 @@
 <?php
 namespace SheetExporter;
 
+use InvalidArgumentException,
+	ZipArchive;
+
 /**
  * Exoport to Ods
  */
 class ExporterOds extends Exporter {
 
+	/**
+	 * @param string $fileName
+	 * @throws RuntimeException
+	 */
 	public function __construct ($fileName) {
-		if (!class_exists('\ZipArchive')) throw new RuntimeException('Missing ZipArchive extension for ODS.');
+		if (!class_exists('ZipArchive')) throw new RuntimeException('Missing ZipArchive extension for ODS.');
 		parent::__construct($fileName);
 	}
 
+	/**
+	 * Create download content
+	 */
 	public function download () {
 		$tempFile = $this->compile();
 		header('Content-Type: application/vnd.oasis.opendocument.spreadsheet; charset=utf-8');
@@ -19,10 +29,15 @@ class ExporterOds extends Exporter {
 		@unlink($tempFile);
 	}
 
+	/**
+	 * Generate Ods file
+	 * @return string
+	 * @throws RuntimeException
+	 */
 	public function compile () {
-		$zip = new \ZipArchive;
+		$zip = new ZipArchive;
 		$tempFile = $this->createTemp();
-		$res = $zip->open($tempFile, \ZipArchive::CREATE);
+		$res = $zip->open($tempFile, ZipArchive::CREATE);
 		if ($res === true) {
 			$contentFile = 'content.xml';
 			$zip->addFromString('mimetype', $this->fileMime());
@@ -40,7 +55,7 @@ class ExporterOds extends Exporter {
 	/**
 	 *
 	 * @return string
-	 * @throws \InvalidArgumentException
+	 * @throws InvalidArgumentException
 	 */
 	private function fileSheet () {
 		ob_start();
@@ -134,7 +149,7 @@ class ExporterOds extends Exporter {
 			foreach ($sheet->getRows() as $num=>$row) {
 				$counter = 0;
 				$class = $sheet->getStyle($num);
-				if ($class && !isset($this->styles[$class])) throw new \InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
+				if ($class && !isset($this->styles[$class])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
 				$height = $class && !empty($this->styles[$class]['HEIGHT']) ? 'ro_'.$class : $defHeight;
 
 				echo '        <table:table-row',($height ? ' table:style-name="'.$height.'"' : ''),'>';

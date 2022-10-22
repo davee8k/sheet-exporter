@@ -1,17 +1,27 @@
 <?php
 namespace SheetExporter;
 
+use InvalidArgumentException;
+
 /**
  * Export to HTML file
  */
 class ExporterHtml extends Exporter {
 
+	/**
+	 * Create download content
+	 */
 	public function download () {
 		header('Content-Type: text/html; charset=utf-8');
 		header('Content-Disposition: attachment; filename="'.$this->fileName.'.html"');
 		$this->compile();
 	}
 
+	/**
+	 * Generate html code
+	 * @return bool
+	 * @throws InvalidArgumentException
+	 */
 	public function compile () {
 ?>
 <!DOCTYPE html>
@@ -72,7 +82,7 @@ class ExporterHtml extends Exporter {
 			foreach ($sheet->getRows() as $num=>$row) {
 				$skipNow = $skipRow;
 				$class = $sheet->getStyle($num);
-				if ($class && !isset($this->styles[$class])) throw new \InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
+				if ($class && !isset($this->styles[$class])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
 
 				echo "\t\t\t<tr>";
 				if (self::$overlay) {
@@ -116,7 +126,7 @@ class ExporterHtml extends Exporter {
 	}
 
 	/**
-	 *
+	 * Get cell table cell
 	 * @param string $val
 	 * @param string $class
 	 * @param array $col
@@ -131,7 +141,7 @@ class ExporterHtml extends Exporter {
 	}
 
 	/**
-	 *
+	 * Format cell style
 	 * @param array $style
 	 * @return array
 	 */
@@ -160,7 +170,7 @@ class ExporterHtml extends Exporter {
 	}
 
 	/**
-	 *
+	 * Format border style settings
 	 * @param array $data
 	 * @param string $side
 	 * @param array $style
