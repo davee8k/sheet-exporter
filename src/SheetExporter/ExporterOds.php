@@ -1,11 +1,12 @@
 <?php
 namespace SheetExporter;
 
-use InvalidArgumentException,
+use RuntimeException,
+	InvalidArgumentException,
 	ZipArchive;
 
 /**
- * Exoport to Ods
+ * Export to Ods
  */
 class ExporterOds extends Exporter {
 
@@ -13,7 +14,7 @@ class ExporterOds extends Exporter {
 	 * @param string $fileName
 	 * @throws RuntimeException
 	 */
-	public function __construct ($fileName) {
+	public function __construct (string $fileName) {
 		if (!class_exists('ZipArchive')) throw new RuntimeException('Missing ZipArchive extension for ODS.');
 		parent::__construct($fileName);
 	}
@@ -21,7 +22,7 @@ class ExporterOds extends Exporter {
 	/**
 	 * Create download content
 	 */
-	public function download () {
+	public function download (): void {
 		$tempFile = $this->compile();
 		header('Content-Type: application/vnd.oasis.opendocument.spreadsheet; charset=utf-8');
 		header('Content-Disposition: attachment; filename="'.$this->fileName.'.ods"');
@@ -34,10 +35,10 @@ class ExporterOds extends Exporter {
 	 * @return string
 	 * @throws RuntimeException
 	 */
-	public function compile () {
+	public function compile (): string {
 		$zip = new ZipArchive;
 		$tempFile = $this->createTemp();
-		$res = $zip->open($tempFile, ZipArchive::CREATE);
+		$res = $zip->open($tempFile, ZipArchive::CREATE|ZipArchive::OVERWRITE);
 		if ($res === true) {
 			$contentFile = 'content.xml';
 			$zip->addFromString('mimetype', $this->fileMime());
@@ -57,7 +58,7 @@ class ExporterOds extends Exporter {
 	 * @return string
 	 * @throws InvalidArgumentException
 	 */
-	private function fileSheet () {
+	private function fileSheet (): string {
 		ob_start();
 		$defHeight = null;
 ?>
@@ -117,7 +118,7 @@ class ExporterOds extends Exporter {
     <office:spreadsheet>
 <?php
 		foreach ($this->sheets as $sid=>$sheet) {
-			$spaces = array();
+			$spaces = [];
 ?>
       <table:table table:name="<?=$sheet->getName();?>">
 <?php
@@ -161,14 +162,14 @@ class ExporterOds extends Exporter {
 					}
 
 					// prepare merge cells and empty cells
-					if (!self::$overlay && is_array($col) && !empty($col['ROWS']) && $col['ROWS'] > 1) {
+					if (is_array($col) && !empty($col['ROWS']) && $col['ROWS'] > 1) {
 						for ($i = 1; $i < $col['ROWS']; $i++) {
 							$spaces[$i][$counter] = empty($col['COLS']) ? 1 : $col['COLS'];
 						}
 					}
 					$counter++;
 
-					if (is_array($col))	echo $this->getColumn($col['VAL'], isset($col['STYLE']) ? $col['STYLE'] : $class, $col);
+					if (is_array($col))	echo $this->getColumn($col['VAL'], $col['STYLE'] ?? $class, $col);
 					else if ($col !== null) echo $this->getColumn($col, $class);
 					else echo '<table:covered-table-cell/>';
 				}
@@ -196,25 +197,25 @@ class ExporterOds extends Exporter {
 	/**
 	 *
 	 * @param string $val
-	 * @param string $class
-	 * @param array $para
+	 * @param string|null $class
+	 * @param array<string, mixed>|null $col
 	 * @return string
 	 */
-	protected function getColumn ($val, $class = '', array $para = null) {
+	protected function getColumn (string $val, ?string $class = null, ?array $col = null): string {
 		return '<table:table-cell'.($class ? ' table:style-name="tc_'.$class.'"' : '').
 			' '.(is_numeric($val) ? ' office:value-type="float" office:value="'.$val.'"' : 'office:value-type="string"').
-			(isset($para['COLS']) || isset($para['ROWS']) && $para['ROWS'] > 1 ? ' table:number-rows-spanned="'.(isset($para['ROWS']) ? $para['ROWS'] : 1).'"' : '').
-			(isset($para['COLS']) && $para['COLS'] > 1 ? ' table:number-columns-spanned="'.$para['COLS'].'"' : '').
+			(isset($col['COLS']) || isset($col['ROWS']) && $col['ROWS'] > 1 ? ' table:number-rows-spanned="'.($col['ROWS'] ?? 1).'"' : '').
+			(isset($col['COLS']) && $col['COLS'] > 1 ? ' table:number-columns-spanned="'.$col['COLS'].'"' : '').
 			'><text:p>'.self::xmlEntities($val).'</text:p></table:table-cell>'.
-			(isset($para['COLS']) && $para['COLS'] > 1 ? '<table:covered-table-cell table:number-columns-repeated="'.($para['COLS'] - 1).'" />' : '');
+			(isset($col['COLS']) && $col['COLS'] > 1 ? '<table:covered-table-cell table:number-columns-repeated="'.($col['COLS'] - 1).'" />' : '');
 	}
 
 	/**
 	 *
-	 * @param array $style
+	 * @param array<string, mixed> $style
 	 * @return string
 	 */
-	private function getStyleElm (array $style) {
+	private function getStyleElm (array $style): string {
 		$t = '';
 		if (isset($style['FONT'])) {
 			$f =& $style['FONT'];
@@ -226,7 +227,7 @@ class ExporterOds extends Exporter {
 				(isset($f['BACKGROUND']) ? ' fo:background-color="'.$f['BACKGROUND'].'"' : '')." />\n";
 
 			if (isset($f['ALIGN'])) {
-				$t .= '      <style:paragraph-properties fo:text-align="'.str_ireplace(array('left','right'), array('start','end'), $f['ALIGN']).'" />'."\n";
+				$t .= '      <style:paragraph-properties fo:text-align="'.str_ireplace(['left','right'], ['start','end'], $f['ALIGN']).'" />'."\n";
 			}
 		}
 		if (isset($style['CELL'])) {
@@ -245,21 +246,21 @@ class ExporterOds extends Exporter {
 
 	/**
 	 *
-	 * @param array $style
-	 * @param string $side
+	 * @param array<string, mixed> $style
+	 * @param string|null $side
 	 * @return string
 	 */
-	private function getBorderStyle (array $style, $side = null) {
+	private function getBorderStyle (array $style, ?string $side = null): string {
 		$t = ' fo:border'.($side ? '-'.$side : '').'= "';
 		if (isset($style['WIDTH'])) $t .= self::convertSize($style['WIDTH'], self::UNITS).self::UNITS.' ';
-		return $t.(isset($style['STYLE']) ? $style['STYLE'] : 'solid').' '.(isset($style['COLOR']) ? $style['COLOR'] : '#000000').'"';
+		return $t.($style['STYLE'] ?? 'solid').' '.($style['COLOR'] ?? static::$defColor).'"';
 	}
 
 	/**
 	 *
 	 * @return string
 	 */
-	private function fileStyles () {
+	private function fileStyles (): string {
 		ob_start();
 ?>
 <office:document-styles xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0">
@@ -272,7 +273,7 @@ class ExporterOds extends Exporter {
       <style:table-cell-properties style:vertical-align="automatic" fo:background-color="transparent" />
 <?php
 		if (!empty($this->defaultStyle)) echo $this->getStyleElm($this->defaultStyle);
-		if (empty($this->defaultStyle) || empty($this->defaultStyle['FONT']['COLOR'])) echo '      <style:text-properties fo:color="#000000" />',"\n";
+		if (empty($this->defaultStyle) || empty($this->defaultStyle['FONT']['COLOR'])) echo '      <style:text-properties fo:color="'.static::$defColor.'" />',"\n";
 ?>
     </style:style>
   </office:styles>
@@ -288,7 +289,7 @@ class ExporterOds extends Exporter {
 	 * @param string $contentFile
 	 * @return string
 	 */
-	private function fileMetaInf ($contentFile) {
+	private function fileMetaInf (string $contentFile): string {
 		ob_start();
 ?>
 <manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0">
@@ -304,10 +305,10 @@ class ExporterOds extends Exporter {
 	}
 
 	/**
-	 * Retrun ODS mime type
+	 * Return ODS mime type
 	 * @return string
 	 */
-	private function fileMime () {
+	private function fileMime (): string {
 		return 'application/vnd.oasis.opendocument.spreadsheet';
 	}
 
@@ -316,7 +317,7 @@ class ExporterOds extends Exporter {
 	 * @param string $contentFile
 	 * @return string
 	 */
-	private function fileManifest ($contentFile) {
+	private function fileManifest (string $contentFile): string {
 		ob_start();
 ?>
 <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
@@ -338,7 +339,7 @@ class ExporterOds extends Exporter {
 	 * Return ODS meta file content
 	 * @return string
 	 */
-	private function fileMeta () {
+	private function fileMeta (): string {
 		ob_start();
 		$date = date('c');
 ?>

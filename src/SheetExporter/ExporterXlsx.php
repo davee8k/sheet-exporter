@@ -1,7 +1,8 @@
 <?php
 namespace SheetExporter;
 
-use InvalidArgumentException,
+use RuntimeException,
+	InvalidArgumentException,
 	ZipArchive;
 
 /**
@@ -16,7 +17,7 @@ class ExporterXlsx extends Exporter {
 	 * @param string $fileName
 	 * @throws RuntimeException
 	 */
-	public function __construct ($fileName) {
+	public function __construct (string $fileName) {
 		if (!class_exists('ZipArchive')) throw new RuntimeException('Missing ZipArchive extension for XLSX.');
 		parent::__construct($fileName);
 	}
@@ -24,7 +25,7 @@ class ExporterXlsx extends Exporter {
 	/**
 	 * Create download content
 	 */
-	public function download () {
+	public function download (): void {
 		$tempFile = $this->compile();
 		header('Content-Type: application/excel; charset=utf-8');
 		header('Content-Disposition: attachment; filename="'.$this->fileName.'.xlsx"');
@@ -37,13 +38,13 @@ class ExporterXlsx extends Exporter {
 	 * @return string
 	 * @throws RuntimeException
 	 */
-	public function compile () {
+	public function compile (): string {
 		$zip = new ZipArchive;
 		$tempFile = $this->createTemp();
-		$res = $zip->open($tempFile, ZipArchive::CREATE);
+		$res = $zip->open($tempFile, ZipArchive::CREATE|ZipArchive::OVERWRITE);
 		if ($res === true) {
 			$zip->addFromString('[Content_Types].xml', self::XML_HEADER.$this->fileContentTypes());
-			$zip->addFromString('_rels/.rels', self::XML_HEADER.$this->fileRelationships('officeDocument', array('rs'.md5($this->fileName) => '/xl/workbook.xml') ));
+			$zip->addFromString('_rels/.rels', self::XML_HEADER.$this->fileRelationships('officeDocument', ['rs'.md5($this->fileName) => '/xl/workbook.xml']));
 			$zip->addFromString('xl/_rels/workbook.xml.rels', self::XML_HEADER.$this->fileRelationships('worksheet', $this->getSheetRelationships() ));
 			$zip->addFromString('xl/workbook.xml', self::XML_HEADER.$this->fileWorkbook());
 			$zip->addFromString('xl/styles.xml', self::XML_HEADER.$this->fileStyles());
@@ -63,10 +64,10 @@ class ExporterXlsx extends Exporter {
 	 * @return string
 	 * @throws InvalidArgumentException
 	 */
-	private function fileSheet ($sheet) {
+	private function fileSheet (Sheet $sheet): string {
 		ob_start();
-		$megreCells = array();
-		$spaces = array();
+		$mergeCells = [];
+		$skipPlan = [];
 		$line = 0;
 ?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -77,7 +78,7 @@ class ExporterXlsx extends Exporter {
   <cols>
 <?php
 			foreach ($sheet->getCols() as $num=>$col) {
-			    echo '    <col collapsed="false" hidden="false" min="',($num + 1),'" max="',($num + 1),'" width="',$this->convertColSize($col),'" />',"\n";
+				echo '    <col collapsed="false" hidden="false" min="',($num + 1),'" max="',($num + 1),'" width="',$this->convertColSize($col),'" />',"\n";
 			}
 			if ($sheet->getDefCol() && count($sheet->getCols()) < $sheet->getColCount()) {
 				echo '    <col collapsed="false" hidden="false" min="',(count($sheet->getCols()) + 1),
@@ -100,73 +101,72 @@ class ExporterXlsx extends Exporter {
 		$styles = array_flip($styles);
 
 		foreach ($sheet->getRows() as $num=>$row) {
-			$k = 0;
-			$move = 0;
+            $current = 0;
 			$class = $sheet->getStyle($num);
 			if ($class && !isset($styles[$class])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
 
 			echo '    <row r="',++$line,'"',($class && isset($this->styles[$class]['HEIGHT']) && $this->styles[$class]['HEIGHT'] ? ' ht="'.self::convertSize($this->styles[$class]['HEIGHT']).'"' : ''),'>';
-			foreach ($row as $col) {
-				$num = $move + $k++;
+			foreach ($row as $j=>$col) {
+				$move = 1;
+//				$current += $skipPlan[$num][$j] ?? 0;
+
 				// insert empty cells under merged
-				if (isset($spaces[0][$num])) {
-					for ($i = 0; $i < $spaces[0][$num]; $i++) {
-						echo '<c r="'.self::toAlpha($num + $i).$line.'" />';
+				if (isset($skipPlan[$num][$j])) {
+					for ($i = 0; $i < $skipPlan[$num][$j]; $i++) {
+						echo '<c r="'.self::toAlpha($current++).$line.'" />';
 					}
-					$num += $spaces[0][$num];
 				}
+
 				if (is_array($col)) {
-					// prepare merge cells and empty cells
-					if (!empty($col['COLS']) && $col['COLS'] > 1) {
-						if (!empty($col['ROWS']) && $col['ROWS'] > 1) {
-							$megreCells[self::toAlpha($num).$line] = self::toAlpha($num + $col['COLS'] - 1).($line + $col['ROWS'] - 1);
-							for ($i = 1; $i < $col['ROWS']; $i++) {
-								$spaces[$i][$num] = $col['COLS'];
+					if (isset($col['COLS']) && $col['COLS'] > 1 || isset($col['ROWS']) && $col['ROWS'] > 1) {
+						$cols = $col['COLS'] ?? 1;
+						$rows = $col['ROWS'] ?? 1;
+
+						$mergeCells[self::toAlpha($current).$line] = self::toAlpha($current + $cols - 1).($line + $rows - 1);
+
+						if ($rows > 1) {
+							for ($i = 1; $i < $rows; $i++) {
+								$skipPlan[$num + $i][$j] = $cols;
 							}
 						}
-						else {
-							$megreCells[self::toAlpha($num).$line] = self::toAlpha($num + $col['COLS'] - 1).$line;
-						}
+
+						$move = $cols;
 					}
-					else if (!empty($col['ROWS']) && $col['ROWS'] > 1) {
-						$megreCells[self::toAlpha($num).$line] = self::toAlpha($num).($line + $col['ROWS'] - 1);
-						for ($i = 1; $i < $col['ROWS']; $i++) {
-							$spaces[$i][$num] = 1;
-						}
-					}
+
 					if (isset($col['STYLE'])) {
 						if (!isset($styles[$col['STYLE']])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($col['STYLE'], ENT_QUOTES));
 						$class = $col['STYLE'];
 					}
-					echo $this->getColumn($num, $line, $col['VAL'], $class ? $styles[$class] + 1 : null);
+					echo $this->getColumn($current, $line, $col['VAL'], $class ? $styles[$class] + 1 : null);
 
-					if (!empty($col['COLS']) && $col['COLS'] > 1) {
-						for ($i = 1; $i < $col['COLS']; $i++) {
-							echo '<c r="'.self::toAlpha($num + $i).$line.'"'.($class ? ' s="'.($styles[$class] + 1).'"' : '').' />';
+					// insert empty cells under merged
+					if ($move > 1) {
+						for ($i = 1; $i < $move; $i++) {
+							echo '<c r="'.self::toAlpha(++$current).$line.'"'.($class ? ' s="'.($styles[$class] + 1).'"' : '').' />';
 						}
-						$move += $col['COLS'] - 1;
 					}
 				}
-				else if ($col !== null) echo $this->getColumn($num, $line, $col, $class ? $styles[$class] + 1 : null);
+				else if ($col !== null) echo $this->getColumn($current, $line, $col, $class ? $styles[$class] + 1 : null);
+
+                $current++;
+				if (isset($skipPlan[$num])) unset($skipPlan[$num]);
 			}
 
-			// remove used dummy cells
-			if (!empty($spaces)) {
-				if (isset($spaces[0])) unset($spaces[0]);
-				if (!empty($spaces)) $spaces = array_values($spaces);
-			}
 			echo "</row>\n";
 		}
 ?>
   </sheetData>
 <?php
-		if (!empty($megreCells)) {
+		if (!empty($mergeCells)) {
 ?>
-  <mergeCells count="<?=count($megreCells);?>">
+  <mergeCells count="<?=count($mergeCells);?>">
 <?php
-	foreach ($megreCells as $from=>$to) echo '    <mergeCell ref="'.$from.':'.$to.'"/>';
+	foreach ($mergeCells as $from=>$to) {
 ?>
-
+    <mergeCell ref="<?=$from.':'.$to;?>"/>
+<?php
+	}
+?>
   </mergeCells>
 <?php
 		}
@@ -181,10 +181,10 @@ class ExporterXlsx extends Exporter {
 	 * @param int $num
 	 * @param int $line
 	 * @param string $val
-	 * @param string $style
+	 * @param int|null $style
 	 * @return string
 	 */
-	protected function getColumn ($num, $line, $val, $style = null) {
+	protected function getColumn (int $num, int $line, string $val, int $style = null): string {
 		return '<c r="'.self::toAlpha($num).$line.'"'.($style ? ' s="'.$style.'"' : '').
 			(is_numeric($val) && ctype_digit(substr($val, 0, 1)) ? ' t="n"><v>'.$val.'</v>' : ' t="inlineStr"><is><t>'.self::xmlEntities($val).'</t></is>').'</c>';
 	}
@@ -194,7 +194,7 @@ class ExporterXlsx extends Exporter {
 	 * @param string|float $size (optimal - mm)
 	 * @return float
 	 */
-	protected function convertColSize ($size) {
+	protected function convertColSize ($size): float {
 		return round((self::convertSize($size, self::UNITS, 'mm') / 1.852383) / (self::convertSize(isset($this->defaultStyle['FONT'],$this->defaultStyle['FONT']['SIZE']) ? $this->defaultStyle['FONT']['SIZE'] : self::FONT_SIZE) / 10), 8);
 	}
 
@@ -202,16 +202,16 @@ class ExporterXlsx extends Exporter {
 	 * XLSX style
 	 * @return string
 	 */
-	protected function fileStyles () {
+	protected function fileStyles (): string {
 		ob_start();
 ?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <?php
 		if (!empty($this->defaultStyle) || !empty($this->styles)) {
 			if (!isset($this->defaultStyle['FONT'],$this->defaultStyle['FONT']['SIZE'])) $this->defaultStyle['FONT']['SIZE'] = self::FONT_SIZE;
-			if (!isset($this->defaultStyle['CELL'])) $this->defaultStyle['CELL'] = array();
+			if (!isset($this->defaultStyle['CELL'])) $this->defaultStyle['CELL'] = [];
 
-			$d = $this->resuffleStyles(array_merge(array($this->defaultStyle), $this->styles));
+			$d = $this->reshuffleStyles(array_merge([$this->defaultStyle], $this->styles));
 ?>
   <fonts count="<?=count($d['FONTS']);?>">
 <?php
@@ -257,7 +257,7 @@ class ExporterXlsx extends Exporter {
     <border>
 <?php
 				foreach (self::$borderTypes as $key=>$mark) {
-					echo $this->getBorderStyle($key, isset($border[$mark]) ? $border[$mark] : null);
+					echo $this->getBorderStyle($key, $border[$mark] ?? null);
 				}
 ?>
       <diagonal />
@@ -272,8 +272,8 @@ class ExporterXlsx extends Exporter {
   <cellXfs count="<?=count($d['MAP']);?>">
 <?php
 			foreach ($d['MAP'] as $i=>$xf) {
-				echo '    <xf numFmtId="0" fontId="',isset($xf['font']) ? $xf['font'] : 0,'" fillId="',
-						isset($xf['fill']) && $xf['fill'] > 0 ? $xf['fill'] + 1 : 0,'" borderId="',isset($xf['border']) ? $xf['border'] : 0,'" xfId="0">';
+				echo '    <xf numFmtId="0" fontId="', $xf['font'] ?? 0,'" fillId="',
+						isset($xf['fill']) && $xf['fill'] > 0 ? $xf['fill'] + 1 : 0,'" borderId="', $xf['border'] ?? 0,'" xfId="0">';
 				if (!empty($xf['ALIGN'])) echo "\n      ",'<alignment horizontal="'.$xf['ALIGN'].'" />',"\n    ";
 				echo "</xf>\n";
 			}
@@ -293,10 +293,10 @@ class ExporterXlsx extends Exporter {
 
 	/**
 	 * Create font style for xlsx
-	 * @param array $font
+	 * @param array<string, mixed> $font
 	 * @return string
 	 */
-	private function getFontStyle (array $font) {
+	private function getFontStyle (array $font): string {
 		$t = "    <font>\n";
 		if (isset($font['WEIGHT'])) $t .= '      <b />'."\n";
 		if (isset($font['SIZE'])) $t .= '      <sz val="'.self::convertSize($font['SIZE']).'" />'."\n";
@@ -308,22 +308,22 @@ class ExporterXlsx extends Exporter {
 	/**
 	 * Create border style and convert border width to 3 types used in xlsx
 	 * @param string $elm
-	 * @param array $border
+	 * @param array<string, mixed> $border
 	 * @return string
 	 */
-	private function getBorderStyle ($elm, array $border = null) {
+	private function getBorderStyle (string $elm, array $border = null): string {
 		if (isset($border['STYLE']) && $border['STYLE'] === 'solid') $border['STYLE'] = 'thin';
-		$style = isset($border['STYLE']) ? $border['STYLE'] : null;
+		$style = $border['STYLE'] ?? null;
 		if (isset($border['WIDTH'])) {
 			if ($border['WIDTH'] >= self::BORDER_THICK) {
 				if ($style) {
-					if (in_array($style, array('dashed'))) $style = 'medium'.ucfirst($style);
+					if (in_array($style, ['dashed'])) $style = 'medium'.ucfirst($style);
 				}
 				else $style = 'thick';
 			}
 			else if ($border['WIDTH'] >= self::BORDER_MEDIUM) {
 				if ($style) {
-					if (in_array($style, array('dashed'))) $style = 'medium'.ucfirst($style);
+					if (in_array($style, ['dashed'])) $style = 'medium'.ucfirst($style);
 				}
 				else $style = 'medium';
 			}
@@ -332,7 +332,7 @@ class ExporterXlsx extends Exporter {
 
 		if ($style !== null) {
 			return '      <'.$elm.' style="'.$style.'">
-        <color rgb="'.self::convertColor($border['COLOR']).'" />
+        <color rgb="'.self::convertColor($border['COLOR'] ?? static::$defColor).'" />
       </'.$elm.">\n";
 		}
 		return '      <'.$elm." />\n";
@@ -340,17 +340,17 @@ class ExporterXlsx extends Exporter {
 
 	/**
 	 * Prepare styles for xlsx structure
-	 * @param array $list
-	 * @return array
+	 * @param array<int|string, mixed> $list
+	 * @return array<string, mixed>
 	 */
-	private function resuffleStyles (array $list) {
-		$map = array();
-		$fonts = array();
-		$fills = array();
-		$borders = array();
+	private function reshuffleStyles (array $list): array {
+		$map = [];
+		$fonts = [];
+		$fills = [];
+		$borders = [];
 
 		foreach ($list as $num=>$style) {
-			$map[$num] = array();
+			$map[$num] = [];
 
 			if (!empty($style['FONT'])) {
 				if (!isset($style['FONT']['SIZE'])) $style['FONT']['SIZE'] = $this->defaultStyle['FONT']['SIZE'];
@@ -361,9 +361,9 @@ class ExporterXlsx extends Exporter {
 			}
 			if (isset($style['CELL'])) {
 				$cell = $style['CELL'];
-				$this->sortStyle($num, isset($cell['BACKGROUND']) ? $cell['BACKGROUND'] : null, 'fill', $fills, $map);
+				$this->sortStyle($num, $cell['BACKGROUND'] ?? null, 'fill', $fills, $map);
 
-				$item = array();
+				$item = [];
 				if (isset($cell['COLOR']) || isset($cell['STYLE']) || isset($cell['WIDTH'])) {
 					$cell = $this->reshuffleStyleBorder($cell);
 				}
@@ -372,27 +372,27 @@ class ExporterXlsx extends Exporter {
 					foreach (self::$borderTypes as $side) {
 						if (!empty($cell[$side])) {
 							$c =& $cell[$side];
-							$item[$side] = array(
-								'COLOR' => isset($c['COLOR']) ? $c['COLOR'] : '#000000',
-								'STYLE' => isset($c['STYLE']) ? $c['STYLE'] : null,
+							$item[$side] = [
+								'COLOR' => $c['COLOR'] ?? static::$defColor,
+								'STYLE' => $c['STYLE'] ?? null,
 								'WIDTH' => isset($c['WIDTH']) ? self::convertSize($c['WIDTH']) : 1
-							);
+							];
 						}
 					}
 				}
 				$this->sortStyle($num, $item, 'border', $borders, $map);
 			}
 		}
-		return array('MAP'=>$map, 'FONTS'=>$fonts, 'FILLS'=>$fills, 'BORDERS'=>$borders);
+		return ['MAP'=>$map, 'FONTS'=>$fonts, 'FILLS'=>$fills, 'BORDERS'=>$borders];
 	}
 
 	/**
 	 * Reformat style for borders
-	 * @param array $cell
-	 * @return array
+	 * @param array<string, mixed> $cell
+	 * @return array<string, mixed>
 	 */
-	private function reshuffleStyleBorder (array $cell) {
-		foreach (array('COLOR','STYLE','WIDTH') as $type) {
+	private function reshuffleStyleBorder (array $cell): array {
+		foreach (['COLOR','STYLE','WIDTH'] as $type) {
 			if (isset($cell[$type])) {
 				foreach (self::$borderTypes as $side) $cell[$side][$type] = $cell[$type];
 				unset($cell[$type]);
@@ -403,13 +403,13 @@ class ExporterXlsx extends Exporter {
 
 	/**
 	 * Reorder style
-	 * @param int $num
-	 * @param array $item
+	 * @param string|int $num
+	 * @param array<string, mixed>|string|null $item
 	 * @param string $type
-	 * @param array $list
-	 * @param array $map
+	 * @param array<string, mixed> $list
+	 * @param array<int, array<string, string>> $map
 	 */
-	private function sortStyle ($num, $item, $type, array &$list, array &$map) {
+	private function sortStyle ($num, $item, string $type, array &$list, array &$map): void {
 		$id = array_search($item, $list);
 		if ($id === false) {
 			$list[] = $item;
@@ -426,7 +426,7 @@ class ExporterXlsx extends Exporter {
 	 * XLSX workbook info
 	 * @return string
 	 */
-	private function fileWorkbook () {
+	private function fileWorkbook (): string {
 		ob_start();
 ?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -444,7 +444,7 @@ class ExporterXlsx extends Exporter {
 	 * XLSX basic info file
 	 * @return string
 	 */
-	private function fileContentTypes () {
+	private function fileContentTypes (): string {
 		ob_start();
 ?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -463,10 +463,10 @@ class ExporterXlsx extends Exporter {
 	/**
 	 * Additional doc info
 	 * @param string $type
-	 * @param array $data
+	 * @param array<string, string> $data
 	 * @return string
 	 */
-	private function fileRelationships ($type, array $data) {
+	private function fileRelationships (string $type, array $data): string {
 		ob_start();
 ?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -481,10 +481,10 @@ class ExporterXlsx extends Exporter {
 
 	/**
 	 * Create sheet list for xlsx
-	 * @return array
+	 * @return array<string, string>
 	 */
-	private function getSheetRelationships () {
-		$data = array();
+	private function getSheetRelationships (): array {
+		$data = [];
 		foreach ($this->sheets as $num=>$sheet) {
 			$data['rId'.($num + 2)] = '/xl/worksheets/sheet'.($num + 1).'.xml';
 		}
@@ -496,7 +496,7 @@ class ExporterXlsx extends Exporter {
 	 * @param string $color		color in #format
 	 * @return string
 	 */
-	public static function convertColor ($color) {
+	public static function convertColor (string $color): string {
 		return 'FF'.(strtoupper(substr($color, 1)));
 	}
 
@@ -505,7 +505,7 @@ class ExporterXlsx extends Exporter {
 	 * @param int $num
 	 * @return string
 	 */
-	public static function toAlpha ($num) {
+	public static function toAlpha (int $num): string {
 		$alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 		if ($num < 26) return $alphabet[$num];
 

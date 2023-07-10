@@ -7,24 +7,24 @@ namespace SheetExporter;
 class Sheet {
 	/** @var string */
 	protected $name;
-	/** @var string|int */
+	/** @var int */
 	protected $colCount = 0;
-	/** @var string|float */
+	/** @var string|float|null */
 	protected $colDefault = null;
-	/** @var array */
-	protected $cols = array();
-	/** @var array */
-	protected $headers = array();
-	/** @var array */
-	protected $rows = array();
-	/** @var array */
-	protected $styles = array();
+	/** @var array<string|float> */
+	protected $cols = [];
+	/** @var string[] */
+	protected $headers = [];
+	/** @var array<int, mixed[]> */
+	protected $rows = [];
+	/** @var array<int, string> */
+	protected $styles = [];
 
 	/**
 	 * Create sheet with name
 	 * @param string $name
 	 */
-	public function __construct ($name) {
+	public function __construct (string $name) {
 		$this->name = self::filterName($name);
 	}
 
@@ -32,36 +32,36 @@ class Sheet {
 	 * Add sheet header
 	 * @param string $column
 	 */
-	public function addColHeader ($column) {
+	public function addColHeader (string $column): void {
 		$this->headers[] = $column;
 		if (count($this->headers) > $this->colCount) $this->colCount = count($this->headers);
 	}
 
 	/**
 	 * Set sheet headers
-	 * @param array $headers
+	 * @param string[] $headers
 	 */
-	public function setColHeaders (array $headers) {
+	public function setColHeaders (array $headers): void {
 		$this->headers = $headers;
 		if (count($this->headers) > $this->colCount) $this->colCount = count($this->headers);
 	}
 
 	/**
 	 * Set width of the columns
-	 * @param array $widths
+	 * @param array<string|float> $widths
 	 * @param string|float $default
 	 */
-	public function setColWidth (array $widths, $default = null) {
+	public function setColWidth (array $widths, $default = null): void {
 		$this->cols = $widths;
 		$this->colDefault = $default;
 	}
 
 	/**
 	 * Add row with style
-	 * @param array $row
-	 * @param string $style
+	 * @param mixed[] $row
+	 * @param string|null $style
 	 */
-	public function addRow (array $row, $style = null) {
+	public function addRow (array $row, string $style = null): void {
 		$this->rows[] = $row;
 		if (count($row) > $this->colCount) $this->colCount = count($row);
 		if ($style !== null) $this->styles[count($this->rows) - 1] = $style;
@@ -69,10 +69,10 @@ class Sheet {
 
 	/**
 	 * Add 2d array
-	 * @param array $array
-	 * @param string $style
+	 * @param array<mixed[]> $array
+	 * @param string|null $style
 	 */
-	public function addArray (array $array, $style = null) {
+	public function addArray (array $array, string $style = null): void {
 		foreach ($array as $row) $this->addRow($row, $style);
 	}
 
@@ -80,13 +80,13 @@ class Sheet {
 	 * Return sheet name
 	 * @return string
 	 */
-	public function getName () {
+	public function getName (): string {
 		return $this->name;
 	}
 
 	/**
 	 * Return default column width
-	 * @return string|float
+	 * @return string|float|null
 	 */
 	public function getDefCol () {
 		return $this->colDefault;
@@ -94,9 +94,9 @@ class Sheet {
 
 	/**
 	 * Return width of the columns
-	 * @return array
+	 * @return array<string|float>
 	 */
-	public function getCols () {
+	public function getCols (): array {
 		return $this->cols;
 	}
 
@@ -104,23 +104,23 @@ class Sheet {
 	 * Return max column count
 	 * @return int
 	 */
-	public function getColCount () {
+	public function getColCount (): int {
 		return $this->colCount;
 	}
 
 	/**
 	 * Return headers
-	 * @return array
+	 * @return string[]
 	 */
-	public function getHeaders () {
+	public function getHeaders (): array {
 		return $this->headers;
 	}
 
 	/**
 	 * Return all rows
-	 * @return array
+	 * @return array<int, mixed[]>
 	 */
-	public function getRows () {
+	public function getRows (): array {
 		return $this->rows;
 	}
 
@@ -129,8 +129,8 @@ class Sheet {
 	 * @param int $num
 	 * @return string|null
 	 */
-	public function getStyle ($num) {
-		return isset($this->styles[$num]) ? $this->styles[$num] : null;
+	public function getStyle (int $num): ?string {
+		return $this->styles[$num] ?? null;
 	}
 
 	/**
@@ -138,7 +138,7 @@ class Sheet {
 	 * @param string $name
 	 * @return string
 	 */
-	public static function filterName ($name) {
+	public static function filterName (string $name): string {
 		return strip_tags($name);
 	}
 }

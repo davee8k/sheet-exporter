@@ -12,74 +12,76 @@ use InvalidArgumentException;
  *
  * @author DaVee8k
  * @license https://unlicense.org/
- * @version 0.85.53
+ * @version 0.87.1
  */
 abstract class Exporter {
-	const VERSION = 0.855;
+	const VERSION = 0.87;
 	const UNITS = 'pt';
 	const XML_HEADER = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
 
-	/** @var array */
-	public static $borderTypes = array('left'=>'LEFT','right'=>'RIGHT','top'=>'TOP','bottom'=>'BOTTOM');
-	/** @var bool */
-	public static $overlay = false;
+	/** @var array<string, string> */
+	public static $borderTypes = ['left'=>'LEFT','right'=>'RIGHT','top'=>'TOP','bottom'=>'BOTTOM'];
+	/** @var string */
+	public static $defColor = '#000000';
 
 	/** @var string */
 	protected $fileName;
-	/** @var array */
-	protected $defaultStyle = array();
+	/** @var array<string, mixed> */
+	protected $defaultStyle = [];
 	/** @var Sheet[] */
-	protected $sheets = array();
-	/** @var array */
-	protected $styles = array();
+	protected $sheets = [];
+	/** @var array<string, mixed> */
+	protected $styles = [];
 
 	/**
 	 * Set output file name
 	 * @param string $fileName
 	 */
-	public function __construct ($fileName) {
-		$this->fileName = filter_var($fileName, FILTER_SANITIZE_URL);
+	public function __construct (string $fileName) {
+		$name = filter_var($fileName, FILTER_SANITIZE_URL);
+		if ($name === false || $name === '') throw new InvalidArgumentException('Nonexistent name');
+		$this->fileName = $name;
 	}
 
 	/**
 	 * Download file
 	 */
-	abstract public function download ();
+	abstract public function download (): void;
 
 	/**
-	 * Build and retrun content
+	 * Build and print(plain text) or return(link on zip file) content
 	 */
-	abstract public function compile ();
+	abstract public function compile (): ?string;
 
 	/**
 	 * Return version
 	 * @return string
 	 */
-	public function getVersion () {
+	public function getVersion (): string {
 		return 'SheetExporter '.Exporter::VERSION;
 	}
 
 	/**
 	 * Set default style
-	 * @param array $font
-	 * @param array $cell
+	 * @param array<string, mixed> $font
+	 * @param array<string, mixed> $cell
 	 * @param int|null $height
 	 */
-	public function setDefault ($font = array(), $cell = array(), $height = null) {
-		$this->defaultStyle = array('FONT'=>$font, 'CELL'=>$this->prepareBorder($cell), 'HEIGHT'=>$height);
+	public function setDefault (array $font = [], array $cell = [], int $height = null): void {
+		$this->defaultStyle = ['FONT'=>$font, 'CELL'=>$this->prepareBorder($cell), 'HEIGHT'=>$height];
 	}
 
 	/**
 	 * Insert new content style
 	 * @param string $mark
-	 * @param array $font
-	 * @param array $cell
+	 * @param array<string, mixed> $font
+	 * @param array<string, mixed> $cell
 	 * @param int|null $height
 	 * @throws InvalidArgumentException
 	 */
-	public function addStyle ($mark, $font = array(), $cell = array(), $height = null) {
-		if (!preg_match('/^[a-z0-9\-]+$/', $mark)) throw new InvalidArgumentException("Style mark must by small alfanumeric only.");
-		$this->styles[$mark] = array('FONT'=>$font, 'CELL'=>$this->prepareBorder($cell), 'HEIGHT'=>$height);
+	public function addStyle (string $mark, array $font = [], array $cell = [], int $height = null): void {
+		if (!preg_match('/^[a-z0-9\-]+$/', $mark)) throw new InvalidArgumentException("Style mark must by small alphanumeric only.");
+		$this->styles[$mark] = ['FONT'=>$font, 'CELL'=>$this->prepareBorder($cell), 'HEIGHT'=>$height];
 	}
 
 	/**
@@ -87,7 +89,7 @@ abstract class Exporter {
 	 * @param Sheet $sheet
 	 * @throws InvalidArgumentException
 	 */
-	public function addSheet (Sheet $sheet) {
+	public function addSheet (Sheet $sheet): void {
 		$name = $sheet->getName();
 		if ($this->checkUniqueName($name) != $name) throw new InvalidArgumentException("Sheet name already exists.");
 		$this->sheets[] = $sheet;
@@ -98,7 +100,7 @@ abstract class Exporter {
 	 * @param string $name
 	 * @return Sheet
 	 */
-	public function insertSheet ($name = 'List') {
+	public function insertSheet (string $name = 'List'): Sheet {
 		$sheet = new Sheet($this->checkUniqueName(Sheet::filterName($name)));
 		$this->sheets[] = $sheet;
 		return $sheet;
@@ -106,28 +108,31 @@ abstract class Exporter {
 
 	/**
 	 * Return array of Sheet
-	 * @return array
+	 * @return Sheet[]
 	 */
-	public function getSheets () {
+	public function getSheets (): array {
 		return $this->sheets;
 	}
 
 	/**
 	 * Create a temporary file in the temporary
-	 * @return false|string
+	 * @return string
+	 * @throws InvalidArgumentException
 	 */
-	protected function createTemp () {
-		$temDir = ini_get('upload_tmp_dir');
-		return tempnam($temDir ? $temDir : sys_get_temp_dir(), $this->fileName);
+	protected function createTemp ():string {
+		$tmpDir = ini_get('upload_tmp_dir');
+		$tmpFile = tempnam($tmpDir ?: sys_get_temp_dir(), $this->fileName);
+		if (!$tmpFile) throw new InvalidArgumentException('Failed to create temporary file');
+		return $tmpFile;
 	}
 
 	/**
-	 * Check if choosed name is unique - if not change it
+	 * Check if chosen name is unique - if not change it
 	 * @param string $newName
 	 * @param int $i
 	 * @return string
 	 */
-	protected function checkUniqueName ($newName, $i = 0) {
+	protected function checkUniqueName (string $newName, int $i = 0): string {
 		foreach ($this->sheets as $sheet) {
 			if ($sheet->getName() == $newName.($i ? '_'.$i : '')) {
 				return $this->checkUniqueName($newName, ++$i);
@@ -138,16 +143,16 @@ abstract class Exporter {
 
 	/**
 	 * Convert border settings
-	 * @param array $cell
-	 * @return array
+	 * @param array<string, mixed> $cell
+	 * @return array<string, mixed>
 	 */
-	protected function prepareBorder ($cell) {
-		if (empty($cell)) return array();
+	protected function prepareBorder (array $cell): array {
+		if (empty($cell)) return [];
 
 		$global = isset($cell['COLOR']) || isset($cell['STYLE']) || isset($cell['WIDTH']);
 		$local = isset($cell['LEFT']) || isset($cell['RIGHT']) || isset($cell['TOP']) || isset($cell['BOTTOM']);
 		if ($global && $local) {
-			foreach (array('COLOR','STYLE','WIDTH') as $type) {
+			foreach (['COLOR','STYLE','WIDTH'] as $type) {
 				if (isset($cell[$type])) {
 					foreach (self::$borderTypes as $side) {
 						if (!isset($cell[$side]) || (!empty($cell[$side]) && !isset($cell[$side][$type]))) $cell[$side][$type] = $cell[$type];
@@ -161,26 +166,27 @@ abstract class Exporter {
 
 	/**
 	 * Convert XML entities
-	 * @param string $string
+	 * @param string|float|int|null $val
 	 * @return string
 	 */
-	public static function xmlEntities ($string) {
-		return $string ? strtr($string, array('<'=>'&lt;', '>'=>'&gt;','"'=>'&quot;', "'"=>'&apos;','&'=>'&amp;')) : $string;
+	public static function xmlEntities ($val): string {
+		if (is_numeric($val) || !$val) return (string) $val;
+		return strtr($val, ['<'=>'&lt;', '>'=>'&gt;','"'=>'&quot;', "'"=>'&apos;','&'=>'&amp;']);
 	}
 
 	/**
-	 * Convert between diferent measure systems
-	 * @param string|float $num	value
-	 * @param string $def	measure unit
-	 * @param string $out	measure unit
-	 * @return string
+	 * Convert between different measure systems
+	 * @param string|float $num	Value
+	 * @param string $def	Measure unit
+	 * @param string|null $out	Measure unit
+	 * @return float
 	 * @throws InvalidArgumentException
 	 */
-	public static function convertSize ($num, $def = 'pt', $out = null) {
+	public static function convertSize ($num, string $def = 'pt', string $out = null): float {
 		if ($out === null) $out = $def;
 		if (is_numeric($num)) {
 			if ($def != $out) $num .= $def;
-			else return $num;
+			else return (float)$num;
 		}
 		else if (preg_match('/'.preg_quote($out, '/').'$/i', $num)) return floatval(str_replace($out, '', $num));
 

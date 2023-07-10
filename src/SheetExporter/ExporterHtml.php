@@ -11,7 +11,7 @@ class ExporterHtml extends Exporter {
 	/**
 	 * Create download content
 	 */
-	public function download () {
+	public function download (): void {
 		header('Content-Type: text/html; charset=utf-8');
 		header('Content-Disposition: attachment; filename="'.$this->fileName.'.html"');
 		$this->compile();
@@ -19,10 +19,10 @@ class ExporterHtml extends Exporter {
 
 	/**
 	 * Generate html code
-	 * @return bool
+	 * @return string|null
 	 * @throws InvalidArgumentException
 	 */
-	public function compile () {
+	public function compile (): ?string {
 ?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="cs" xml:lang="cs">
@@ -31,6 +31,7 @@ class ExporterHtml extends Exporter {
 	<meta charset="utf-8" />
 	<meta name="generator" content="<?=$this->getVersion();?>" />
 	<style>
+		td { border-color: <?=static::$defColor;?>; }
 		td.number { text-align: right; }
 <?php
 		if (!empty($this->defaultStyle)) {
@@ -77,39 +78,15 @@ class ExporterHtml extends Exporter {
 ?>
 		<tbody>
 <?php
-
-			$skipRow = array();
 			foreach ($sheet->getRows() as $num=>$row) {
-				$skipNow = $skipRow;
 				$class = $sheet->getStyle($num);
 				if ($class && !isset($this->styles[$class])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
 
 				echo "\t\t\t<tr>";
-				if (self::$overlay) {
-					// hide
-					foreach ($row as $i=>$col) {
-						if (!isset($skipNow[$i]) || $skipNow[$i] === 0) {
-							if (is_array($col)) echo $this->getColumn($col['VAL'], isset($col['STYLE']) ? $col['STYLE'] : $class, $col);
-							else echo $this->getColumn($col, $class);
-						}
-						if (is_array($col) && !empty($col['ROWS'])) {
-							$cols = !empty($col['COLS']) ? $col['COLS'] : 1;
-							for ($j = 0; $j < $cols; $j++) {
-								if (!isset($skipRow[$i + $j])) $skipRow[$i + $j] = 0;
-								$skipRow[$i + $j] += $col['ROWS'];
-							}
-						}
-					}
-					foreach ($skipRow as $i=>$none) {
-						if ($skipRow[$i] > 0) $skipRow[$i]--;
-					}
-				}
-				else {
-					// render everything
-					foreach ($row as $i=>$col) {
-						if (is_array($col)) echo $this->getColumn($col['VAL'], isset($col['STYLE']) ? $col['STYLE'] : $class, $col);
-						else echo $this->getColumn($col, $class);
-					}
+				// render everything
+				foreach ($row as $col) {
+					if (is_array($col)) echo $this->getColumn($col['VAL'], $col['STYLE'] ?? $class, $col);
+					else echo $this->getColumn($col, $class);
 				}
 				echo "</tr>\n";
 			}
@@ -122,17 +99,18 @@ class ExporterHtml extends Exporter {
 </body>
 </html>
 <?php
-		return true;
+		return null;
 	}
 
 	/**
-	 * Get cell table cell
-	 * @param string $val
-	 * @param string $class
-	 * @param array $col
+	 * Get table cell
+	 * @param string|float|int|null $val
+	 * @param string|null $class
+	 * @param array<string, mixed>|null $col
 	 * @return string
 	 */
-	protected function getColumn ($val, $class = '', array $col = null) {
+	protected function getColumn ($val, ?string $class = null, ?array $col = null): string {
+		if ($val === null) return '';
 		$isNum = is_numeric($val);
 		return '<td'.($class || $isNum ? ' class="'.$class.($isNum ? ' number' : '').'"' : '').
 				(isset($col['ROWS']) && $col['ROWS'] > 1 ? ' rowspan="'.$col['ROWS'].'"' : '').
@@ -142,11 +120,11 @@ class ExporterHtml extends Exporter {
 
 	/**
 	 * Format cell style
-	 * @param array $style
-	 * @return array
+	 * @param array<string, mixed> $style
+	 * @return string[]
 	 */
-	private function getStyle (array $style) {
-		$data = array();
+	private function getStyle (array $style): array {
+		$data = [];
 		if (isset($style['FONT']['COLOR'])) $data[] = 'color: '.$style['FONT']['COLOR'];
 		if (isset($style['FONT']['SIZE'])) $data[] = 'font-size: '.self::convertSize($style['FONT']['SIZE'], self::UNITS).self::UNITS;
 		if (isset($style['FONT']['FAMILY'])) $data[] = 'font-family: "'.$style['FONT']['FAMILY'].'"';
@@ -171,12 +149,12 @@ class ExporterHtml extends Exporter {
 
 	/**
 	 * Format border style settings
-	 * @param array $data
+	 * @param string[] $data
 	 * @param string $side
-	 * @param array $style
-	 * @return array
+	 * @param array<string, mixed> $style
+	 * @return string[]
 	 */
-	private function getBorderStyle (array $data, $side, array $style = null) {
+	private function getBorderStyle (array $data, string $side, array $style = null): array {
 		if (isset($style['COLOR'])) $data[] = $side.'-color: '.$style['COLOR'];
 		if (isset($style['STYLE'])) $data[] = $side.'-style: '.$style['STYLE'];
 		if (isset($style['WIDTH'])) $data[] = $side.'-width: '.self::convertSize($style['WIDTH'], self::UNITS).self::UNITS;
