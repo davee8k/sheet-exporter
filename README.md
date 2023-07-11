@@ -6,7 +6,7 @@ Simple XLSX/ODS/HTML table exporter
 
 ## Requirements
 
-- PHP 7.1+ (PHP 5.3+ for version 0.86 and older)
+- PHP 7.1+ (PHP 5.3+ for version 0.85 and older)
 - for XLSX and ODS require php-zip extension
 
 ## Usage
