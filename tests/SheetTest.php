@@ -1,9 +1,10 @@
-<?php
+<?php declare(strict_types=1);
+
 use SheetExporter\Sheet;
 
 class SheetTest extends \PHPUnit\Framework\TestCase {
 
-	public function testCreateSheet () {
+	public function testCreateSheet (): void {
 		$sheet = new Sheet('<h2>test</h2>');
 
 		$this->assertEquals('test', $sheet->getName());

@@ -1,4 +1,5 @@
-<?php
+<?php declare(strict_types=1);
+
 namespace SheetExporter;
 
 use InvalidArgumentException;
@@ -6,18 +7,22 @@ use InvalidArgumentException;
 /**
  * Simple XLSX/ODS/HTML table exporter
  * XLSX and ODS require ZipArchive class
- * basic style support for
+ *
+ * Basic style support for:
  * $font -[ COLOR, SIZE, FAMILY, WEIGHT, ALIGN ]
  * $cell (possible LEFT, RIGHT, TOP, BOTTOM) - [ BACKGROUND, COLOR, WIDTH, STYLE ]
  *
  * @author DaVee8k
  * @license https://unlicense.org/
- * @version 0.87.1
+ * @version 0.87.2
  */
 abstract class Exporter {
-	const VERSION = 0.87;
-	const UNITS = 'pt';
-	const XML_HEADER = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
+	/** @var float */
+	public const VERSION = 0.87;
+	/** @var string */
+	protected const UNITS = 'pt';
+	/** @var string */
+	protected const XML_HEADER = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
 
 	/** @var array<string, string> */
 	public static $borderTypes = ['left'=>'LEFT','right'=>'RIGHT','top'=>'TOP','bottom'=>'BOTTOM'];
@@ -46,12 +51,12 @@ abstract class Exporter {
 	/**
 	 * Download file
 	 */
-	abstract public function download (): void;
+	public abstract function download (): void;
 
 	/**
 	 * Build and print(plain text) or return(link on zip file) content
 	 */
-	abstract public function compile (): ?string;
+	public abstract function compile (): ?string;
 
 	/**
 	 * Return version

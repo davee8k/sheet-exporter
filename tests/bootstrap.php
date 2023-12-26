@@ -1,4 +1,5 @@
-<?php
+<?php declare(strict_types=1);
+
 require_once 'BasicExporterTrait.php';
 
 require_once '../src/SheetExporter/Exporter.php';

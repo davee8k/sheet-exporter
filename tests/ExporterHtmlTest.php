@@ -1,11 +1,12 @@
-<?php
+<?php declare(strict_types=1);
+
 use SheetExporter\Exporter,
 	SheetExporter\ExporterHtml;
 
 class ExporterHtmlTest extends \PHPUnit\Framework\TestCase {
 	use BasicExporterTrait;
 
-	public function testExportBasic () {
+	public function testExportBasic (): void {
 		$ex = new ExporterHtml('test');
 		$this->fillSheetBasic($ex);
 
@@ -41,7 +42,7 @@ $txt = '<!DOCTYPE html>
 		$ex->compile();
 	}
 
-	public function testExportComplex () {
+	public function testExportComplex (): void {
 		$ex = new ExporterHtml('test');
 		$this->fillSheetComplex($ex);
 

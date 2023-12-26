@@ -1,4 +1,5 @@
-<?php
+<?php declare(strict_types=1);
+
 namespace SheetExporter;
 
 use RuntimeException,
@@ -191,7 +192,7 @@ class ExporterOds extends Exporter {
   </office:body>
 </office:document-content>
 <?php
-		return ob_get_clean();
+		return ob_get_clean() ?: '';
 	}
 
 	/**
@@ -281,7 +282,7 @@ class ExporterOds extends Exporter {
   <office:master-styles/>
 </office:document-styles>
 <?php
-		return ob_get_clean();
+		return ob_get_clean() ?: '';
 	}
 
 	/**
@@ -301,7 +302,7 @@ class ExporterOds extends Exporter {
   <manifest:file-entry manifest:full-path="META-INF/manifest.xml" manifest:media-type="text/xml" />
 </manifest:manifest>
 <?php
-		return ob_get_clean();
+		return ob_get_clean() ?: '';
 	}
 
 	/**
@@ -332,7 +333,7 @@ class ExporterOds extends Exporter {
   </rdf:Description>
 </rdf:RDF>
 <?php
-		return ob_get_clean();
+		return ob_get_clean() ?: '';
 	}
 
 	/**
@@ -351,6 +352,6 @@ class ExporterOds extends Exporter {
   </office:meta>
 </office:document-meta>
 <?php
-		return ob_get_clean();
+		return ob_get_clean() ?: '';
 	}
 }

@@ -1,11 +1,11 @@
-<?php
-use SheetExporter\Exporter,
-	SheetExporter\ExporterXlsx;
+<?php declare(strict_types=1);
+
+use SheetExporter\ExporterXlsx;
 
 class ExporterXlsxTest extends \PHPUnit\Framework\TestCase {
 	use BasicExporterTrait;
 
-	public function testExportBasic () {
+	public function testExportBasic (): void {
 		$ex = new ExporterXlsx('test');
 		$this->fillSheetBasic($ex);
 		$sheets = $ex->getSheets();
@@ -93,7 +93,7 @@ $txt = '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/rel
 		$this->assertEquals($txt, $this->callPrivateMethod($ex, 'fileRelationships', ['worksheet', $this->callPrivateMethod($ex, 'getSheetRelationships') ]));
 	}
 
-	public function testExportComplex () {
+	public function testExportComplex (): void {
 		$ex = new ExporterXlsx('test');
 		$this->fillSheetComplex($ex);
 		$sheets = $ex->getSheets();

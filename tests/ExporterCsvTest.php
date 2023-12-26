@@ -1,12 +1,12 @@
-<?php
-use SheetExporter\Exporter,
-	SheetExporter\ExporterCsv;
+<?php declare(strict_types=1);
+
+use SheetExporter\ExporterCsv;
 
 class ExporterCsvTest extends \PHPUnit\Framework\TestCase {
 	use BasicExporterTrait;
 
 
-	public function testExportBasic () {
+	public function testExportBasic (): void {
 		$ex = new ExporterCsv('test');
 		$this->fillSheetBasic($ex);
 
@@ -22,7 +22,7 @@ three,last,
 		$ex->compile();
 	}
 
-	public function testExportComplex () {
+	public function testExportComplex (): void {
 		$ex = new ExporterCsv('test');
 		$this->fillSheetComplex($ex);
 

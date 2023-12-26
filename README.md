@@ -2,7 +2,7 @@
 
 ## Description
 
-Simple XLSX/ODS/HTML table exporter
+Simple XLSX/ODS/HTML/CSV table exporter
 
 ## Requirements
 

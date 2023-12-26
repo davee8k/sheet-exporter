@@ -1,4 +1,5 @@
-<?php
+<?php declare(strict_types=1);
+
 use SheetExporter\Exporter,
 	SheetExporter\ExporterHtml,
 	SheetExporter\ExporterXlsx,
@@ -24,7 +25,7 @@ trait BasicExporterTrait {
 		return $method->invokeArgs($obj, $args);
 	}
 
-	protected function fillSheetBasic (Exporter $ex) {
+	protected function fillSheetBasic (Exporter $ex): void {
 		$ex->setDefault(['SIZE'=>20], ['BORDER'=>10], 20);
 
 		$sheet = $ex->insertSheet('List');
@@ -32,7 +33,7 @@ trait BasicExporterTrait {
 		$sheet->addArray([['one with \' and "'], [['ROWS'=>3, 'VAL'=>'two'], 'two, next'], [['COLS'=>3, 'VAL'=>'three'], 'last'], [null], [['COLS'=>3, 'VAL'=>'four'], 'column, next'], [['ROWS'=>3, 'VAL'=>'three'], 'last']]);
 	}
 
-	protected function fillSheetComplex (Exporter $ex) {
+	protected function fillSheetComplex (Exporter $ex): void {
 		$ex->addStyle('one', ['SIZE'=>20, 'ALIGN'=>'right'], ['WIDTH'=>5], 20);
 		$ex->addStyle('two', ['COLOR'=>'#fff000'], ['LEFT'=>['COLOR'=>'#000fff', 'STYLE'=>'dotted', 'WIDTH'=>10]], 40);
 		$ex->addStyle('three', [], ['BACKGROUND'=>'#6600ff']);
@@ -52,15 +53,15 @@ trait BasicExporterTrait {
 	 *
 	 * @dataProvider dataExporters
 	 */
-	public function testBaseExport (Exporter $ex) {
+	public function testBaseExport (Exporter $ex): void {
 		$this->assertEquals('SheetExporter '.Exporter::VERSION, $ex->getVersion());
 
 		$ex->insertSheet();
 		$ex->insertSheet();
-		$this->assertEquals(2, sizeof($ex->getSheets()));
+		$this->assertEquals(2, count($ex->getSheets()));
 
 		$ex->addSheet(new Sheet('Test'));
-		$this->assertEquals(3, sizeof($ex->getSheets()));
+		$this->assertEquals(3, count($ex->getSheets()));
 
 		$this->expectException('InvalidArgumentException', 'Sheet name already exists.');
 		$ex->addSheet(new Sheet('Test'));
@@ -70,7 +71,7 @@ trait BasicExporterTrait {
 	 *
 	 * @dataProvider dataExporters
 	 */
-	public function testStyleExportFail (Exporter $ex) {
+	public function testStyleExportFail (Exporter $ex): void {
 		$ex->setDefault([], ['COLOR'=>'#fff000', 'LEFT'=>['COLOR'=>'#000fff']]);
 		$ex->addStyle('style');
 		$this->expectException('InvalidArgumentException', 'Style mark must by small alfanumeric only.');

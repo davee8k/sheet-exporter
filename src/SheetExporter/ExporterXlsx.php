@@ -1,4 +1,5 @@
-<?php
+<?php declare(strict_types=1);
+
 namespace SheetExporter;
 
 use RuntimeException,
@@ -9,9 +10,11 @@ use RuntimeException,
  * Export to Xlsx
  */
 class ExporterXlsx extends Exporter {
-	const FONT_SIZE = '10pt';
-	const BORDER_MEDIUM = 2;
-	const BORDER_THICK = 4;
+	/** @var string */
+	private const FONT_SIZE = '10pt';
+	/** @var int */
+	private const BORDER_MEDIUM = 2,
+		BORDER_THICK = 4;
 
 	/**
 	 * @param string $fileName
@@ -101,7 +104,7 @@ class ExporterXlsx extends Exporter {
 		$styles = array_flip($styles);
 
 		foreach ($sheet->getRows() as $num=>$row) {
-            $current = 0;
+			$current = 0;
 			$class = $sheet->getStyle($num);
 			if ($class && !isset($styles[$class])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
 
@@ -148,7 +151,7 @@ class ExporterXlsx extends Exporter {
 				}
 				else if ($col !== null) echo $this->getColumn($current, $line, $col, $class ? $styles[$class] + 1 : null);
 
-                $current++;
+				$current++;
 				if (isset($skipPlan[$num])) unset($skipPlan[$num]);
 			}
 
@@ -173,7 +176,7 @@ class ExporterXlsx extends Exporter {
 ?>
 </worksheet>
 <?php
-		return ob_get_clean();
+		return ob_get_clean() ?: '';
 	}
 
 	/**
@@ -199,7 +202,7 @@ class ExporterXlsx extends Exporter {
 	}
 
 	/**
-	 * XLSX style
+	 * XLSX style, can't be empty
 	 * @return string
 	 */
 	protected function fileStyles (): string {
@@ -207,63 +210,62 @@ class ExporterXlsx extends Exporter {
 ?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <?php
-		if (!empty($this->defaultStyle) || !empty($this->styles)) {
-			if (!isset($this->defaultStyle['FONT'],$this->defaultStyle['FONT']['SIZE'])) $this->defaultStyle['FONT']['SIZE'] = self::FONT_SIZE;
-			if (!isset($this->defaultStyle['CELL'])) $this->defaultStyle['CELL'] = [];
+		if (!isset($this->defaultStyle['FONT'],$this->defaultStyle['FONT']['SIZE'])) $this->defaultStyle['FONT']['SIZE'] = self::FONT_SIZE;
+		if (!isset($this->defaultStyle['CELL'])) $this->defaultStyle['CELL'] = [];
 
-			$d = $this->reshuffleStyles(array_merge([$this->defaultStyle], $this->styles));
+		$d = $this->reshuffleStyles(array_merge([$this->defaultStyle], $this->styles));
 ?>
   <fonts count="<?=count($d['FONTS']);?>">
 <?php
-			foreach ($d['FONTS'] as $font) echo $this->getFontStyle($font);
+		foreach ($d['FONTS'] as $font) echo $this->getFontStyle($font);
 ?>
   </fonts>
   <fills count="<?=count($d['FILLS']) + 1;?>">
 <?php
-			foreach ($d['FILLS'] as $num=>$fill) {
+		foreach ($d['FILLS'] as $num=>$fill) {
 ?>
     <fill>
 <?php
-				if ($fill) {
+			if ($fill) {
 ?>
       <patternFill patternType="solid">
         <fgColor rgb="<?=self::convertColor($fill);?>" />
       </patternFill>
 <?php
-				}
-				else {
+			}
+			else {
 ?>
       <patternFill patternType="none" />
 <?php
-				}
+			}
 ?>
     </fill>
 <?php
-				// FIXING MSO2007 FEATURE - 1 is always gray125
-				if ($num == 0) {
+			// FIXING MSO2007 FEATURE - 1 is always gray125
+			if ($num == 0) {
 ?>
     <fill>
       <patternFill patternType="gray125" />
     </fill>
 <?php
-				}
 			}
+		}
 ?>
   </fills>
   <borders count="<?=count($d['BORDERS']) ;?>">
 <?php
-			foreach ($d['BORDERS'] as $border) {
+		foreach ($d['BORDERS'] as $border) {
 ?>
     <border>
 <?php
-				foreach (self::$borderTypes as $key=>$mark) {
-					echo $this->getBorderStyle($key, $border[$mark] ?? null);
-				}
+			foreach (self::$borderTypes as $key=>$mark) {
+				echo $this->getBorderStyle($key, $border[$mark] ?? null);
+			}
 ?>
       <diagonal />
     </border>
 <?php
-			}
+		}
 ?>
   </borders>
   <cellStyleXfs count="1">
@@ -271,24 +273,21 @@ class ExporterXlsx extends Exporter {
   </cellStyleXfs>
   <cellXfs count="<?=count($d['MAP']);?>">
 <?php
-			foreach ($d['MAP'] as $i=>$xf) {
-				echo '    <xf numFmtId="0" fontId="', $xf['font'] ?? 0,'" fillId="',
-						isset($xf['fill']) && $xf['fill'] > 0 ? $xf['fill'] + 1 : 0,'" borderId="', $xf['border'] ?? 0,'" xfId="0">';
-				if (!empty($xf['ALIGN'])) echo "\n      ",'<alignment horizontal="'.$xf['ALIGN'].'" />',"\n    ";
-				echo "</xf>\n";
-			}
+		foreach ($d['MAP'] as $i=>$xf) {
+			echo '    <xf numFmtId="0" fontId="', $xf['font'] ?? 0,'" fillId="',
+					isset($xf['fill']) && $xf['fill'] > 0 ? $xf['fill'] + 1 : 0,'" borderId="', $xf['border'] ?? 0,'" xfId="0">';
+			if (!empty($xf['ALIGN'])) echo "\n      ",'<alignment horizontal="'.$xf['ALIGN'].'" />',"\n    ";
+			echo "</xf>\n";
+		}
 ?>
   </cellXfs>
   <cellStyles count="1">
     <cellStyle name="Normální" xfId="0" builtinId="0" />
   </cellStyles>
   <dxfs count="0" />
-<?php
-		}
-?>
 </styleSheet>
 <?php
-		return ob_get_clean();
+		return ob_get_clean() ?: '';
 	}
 
 	/**
@@ -437,7 +436,7 @@ class ExporterXlsx extends Exporter {
   </sheets>
 </workbook>
 <?php
-		return ob_get_clean();
+		return ob_get_clean() ?: '';
 	}
 
 	/**
@@ -457,7 +456,7 @@ class ExporterXlsx extends Exporter {
   <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
 </Types>
 <?php
-		return ob_get_clean();
+		return ob_get_clean() ?: '';
 	}
 
 	/**
@@ -476,7 +475,7 @@ class ExporterXlsx extends Exporter {
 <?php	}	?>
 </Relationships>
 <?php
-		return ob_get_clean();
+		return ob_get_clean() ?: '';
 	}
 
 	/**

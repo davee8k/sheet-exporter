@@ -1,11 +1,11 @@
-<?php
-use SheetExporter\Exporter,
-	SheetExporter\ExporterOds;
+<?php declare(strict_types=1);
+
+use SheetExporter\ExporterOds;
 
 class ExporterOdsTest extends \PHPUnit\Framework\TestCase {
 	use BasicExporterTrait;
 
-	public function testExportBasic () {
+	public function testExportBasic (): void {
 		$ex = new ExporterOds('test');
 		$this->fillSheetBasic($ex);
 
@@ -92,7 +92,7 @@ $txt = preg_quote('<office:document-meta xmlns:office="urn:oasis:names:tc:opendo
 		$this->assertMatchesRegularExpression('/'.$txt.'/', $this->callPrivateMethod($ex, 'fileMeta'));
 	}
 
-	public function testExportComplex () {
+	public function testExportComplex (): void {
 		$ex = new ExporterOds('test');
 		$this->fillSheetComplex($ex);
 
