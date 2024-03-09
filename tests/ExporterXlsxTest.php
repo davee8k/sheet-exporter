@@ -110,7 +110,7 @@ $txt = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/m
     <row r="1"><c r="A1" t="inlineStr"><is><t>&lt;h1&gt;Nadpis&lt;/h1&gt;</t></is></c><c r="B1" t="inlineStr"><is><t>Další nadpis</t></is></c></row>
     <row r="2"><c r="A2" t="inlineStr"><is><t>obsah</t></is></c><c r="B2" s="1" t="inlineStr"><is><t>text</t></is></c></row>
     <row r="3"><c r="A3" t="inlineStr"><is><t>a</t></is></c><c r="B3" t="inlineStr"><is><t>b</t></is></c><c r="C3" t="inlineStr"><is><t>c</t></is></c><c r="D3" t="inlineStr"><is><t>d</t></is></c><c r="E3" t="inlineStr"><is><t>e</t></is></c><c r="F3" t="inlineStr"><is><t>f</t></is></c><c r="G3" t="inlineStr"><is><t>g</t></is></c><c r="H3" t="inlineStr"><is><t>h</t></is></c><c r="I3" t="inlineStr"><is><t>i</t></is></c><c r="J3" t="inlineStr"><is><t>j</t></is></c><c r="K3" t="inlineStr"><is><t>k</t></is></c><c r="L3" t="inlineStr"><is><t>a</t></is></c><c r="M3" t="inlineStr"><is><t>b</t></is></c><c r="N3" t="inlineStr"><is><t>c</t></is></c><c r="O3" t="inlineStr"><is><t>d</t></is></c><c r="P3" t="inlineStr"><is><t>e</t></is></c><c r="Q3" t="inlineStr"><is><t>f</t></is></c><c r="R3" t="inlineStr"><is><t>g</t></is></c><c r="S3" t="inlineStr"><is><t>h</t></is></c><c r="T3" t="inlineStr"><is><t>i</t></is></c><c r="U3" t="inlineStr"><is><t>j</t></is></c><c r="V3" t="inlineStr"><is><t>k</t></is></c><c r="W3" t="inlineStr"><is><t>a</t></is></c><c r="X3" t="inlineStr"><is><t>b</t></is></c><c r="Y3" t="inlineStr"><is><t>c</t></is></c><c r="Z3" t="inlineStr"><is><t>d</t></is></c><c r="AA3" t="inlineStr"><is><t>e</t></is></c><c r="AB3" t="inlineStr"><is><t>f</t></is></c><c r="AC3" t="inlineStr"><is><t>g</t></is></c><c r="AD3" t="inlineStr"><is><t>h</t></is></c><c r="AE3" t="inlineStr"><is><t>i</t></is></c><c r="AF3" t="inlineStr"><is><t>j</t></is></c><c r="AG3" t="inlineStr"><is><t>k</t></is></c><c r="AH3" t="inlineStr"><is><t>a</t></is></c><c r="AI3" t="inlineStr"><is><t>b</t></is></c><c r="AJ3" t="inlineStr"><is><t>c</t></is></c><c r="AK3" t="inlineStr"><is><t>d</t></is></c><c r="AL3" t="inlineStr"><is><t>e</t></is></c></row>
-    <row r="4" ht="40"><c r="A4" s="2" t="inlineStr"><is><t>super radek</t></is></c><c r="B4" s="2" /><c r="C4" s="2" /><c r="D4" s="2" /><c r="E4" s="2" t="inlineStr"><is><t>další&amp;znak</t></is></c></row>
+    <row r="4" ht="40"><c r="A4" s="2" t="inlineStr"><is><t>super radek</t></is></c><c r="B4" /><c r="C4" /><c r="D4" /><c r="E4" s="2" t="inlineStr"><is><t>další&amp;znak</t></is></c></row>
     <row r="5"><c r="A5" /><c r="B5" /><c r="C5" /><c r="D5" /><c r="E5" s="3" t="inlineStr"><is><t>End?</t></is></c></row>
     <row r="6"><c r="A6" t="inlineStr"><is><t>final</t></is></c><c r="B6" t="inlineStr"><is><t>row</t></is></c></row>
   </sheetData>
@@ -198,5 +198,22 @@ $txt = '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/
 </styleSheet>
 ';
 		$this->assertEquals($txt, $this->callPrivateMethod($ex, 'fileStyles'));
+	}
+
+	public function testExportFormula (): void {
+		$ex = new ExporterXlsx('test');
+		$this->fillSheetFormula($ex);
+		$sheets = $ex->getSheets();
+
+$txt = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheetFormatPr defaultRowHeight="" />
+  <sheetData>
+    <row r="1"><c r="A1" t="n"><v>1</v></c><c r="B1" t="n"><v>2</v></c><c r="C1" t="n"><v>3</v></c><c r="D1" t="n"><v>4</v></c><c r="E1" t="inlineStr"><is><t>test</t></is></c></row>
+    <row r="2"><c r="A2" t="inlineStr"><f aca="false">SUM(A1:D1)</f><is><t></t></is></c><c r="B2" t="inlineStr"><f aca="false">$E$1</f><is><t></t></is></c></row>
+  </sheetData>
+</worksheet>
+';
+
+		$this->assertEquals($txt, $this->callPrivateMethod($ex, 'fileSheet', [reset($sheets)]));
 	}
 }

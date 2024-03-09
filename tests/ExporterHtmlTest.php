@@ -119,4 +119,35 @@ $txt = '<!DOCTYPE html>
 		$this->expectOutputString($txt);
 		$ex->compile();
 	}
+
+	public function testExportFormula (): void {
+		$ex = new ExporterHtml('test');
+		$this->fillSheetFormula($ex);
+
+$txt = '<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="cs" xml:lang="cs">
+<head>
+	<title>Export test</title>
+	<meta charset="utf-8" />
+	<meta name="generator" content="SheetExporter '.Exporter::VERSION.'" />
+	<style>
+		td { border-color: #000000; }
+		td.number { text-align: right; }
+	</style>
+</head>
+<body>
+	<table border="1" cellspacing="0" cellpadding="5">
+		<caption>List</caption>
+		<tbody>
+			<tr><td class="number">1</td><td class="number">2</td><td class="number">3</td><td class="number">4</td><td>test</td></tr>
+			<tr><td></td><td></td></tr>
+		</tbody>
+	</table>
+</body>
+</html>
+';
+
+		$this->expectOutputString($txt);
+		$ex->compile();
+	}
 }

@@ -33,9 +33,12 @@ example:
 	$sheet->addRow([['COLS'=>4, 'ROWS'=>2, 'VAL'=>'big cell'], 'one']);
 	// set custom style to every cell in row
 	$sheet->addRow(['Last','row'], 'two');
+	// insert formula
+	$sheet->addRow(['FORMULA'=>'B1']);
 
 	// generate and download file
 	$exporter->download();
 
-## TODO
-Add basic formula support
+## Note
+
+- formulas works only in XLSX and ODS formats

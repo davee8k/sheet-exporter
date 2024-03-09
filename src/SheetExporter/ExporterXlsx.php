@@ -104,58 +104,28 @@ class ExporterXlsx extends Exporter {
 		$styles = array_flip($styles);
 
 		foreach ($sheet->getRows() as $num=>$row) {
-			$current = 0;
+			$last = -1;
+			$move = 0;
 			$class = $sheet->getStyle($num);
 			if ($class && !isset($styles[$class])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
 
 			echo '    <row r="',++$line,'"',($class && isset($this->styles[$class]['HEIGHT']) && $this->styles[$class]['HEIGHT'] ? ' ht="'.self::convertSize($this->styles[$class]['HEIGHT']).'"' : ''),'>';
-			foreach ($row as $j=>$col) {
-				$move = 1;
-//				$current += $skipPlan[$num][$j] ?? 0;
-
+			for ($j = 0; $j < $move + $sheet->getColCount(); $j++) {
 				// insert empty cells under merged
 				if (isset($skipPlan[$num][$j])) {
 					for ($i = 0; $i < $skipPlan[$num][$j]; $i++) {
-						echo '<c r="'.self::toAlpha($current++).$line.'" />';
+						echo '<c r="'.self::toAlpha($j + $i).$line.'" />';
 					}
+					$move += $skipPlan[$num][$j];
 				}
-
-				if (is_array($col)) {
-					if (isset($col['COLS']) && $col['COLS'] > 1 || isset($col['ROWS']) && $col['ROWS'] > 1) {
-						$cols = $col['COLS'] ?? 1;
-						$rows = $col['ROWS'] ?? 1;
-
-						$mergeCells[self::toAlpha($current).$line] = self::toAlpha($current + $cols - 1).($line + $rows - 1);
-
-						if ($rows > 1) {
-							for ($i = 1; $i < $rows; $i++) {
-								$skipPlan[$num + $i][$j] = $cols;
-							}
-						}
-
-						$move = $cols;
-					}
-
-					if (isset($col['STYLE'])) {
-						if (!isset($styles[$col['STYLE']])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($col['STYLE'], ENT_QUOTES));
-						$class = $col['STYLE'];
-					}
-					echo $this->getColumn($current, $line, $col['VAL'], $class ? $styles[$class] + 1 : null);
-
-					// insert empty cells under merged
-					if ($move > 1) {
-						for ($i = 1; $i < $move; $i++) {
-							echo '<c r="'.self::toAlpha(++$current).$line.'"'.($class ? ' s="'.($styles[$class] + 1).'"' : '').' />';
-						}
-					}
+				if (isset($row[$j - $move]) && $last < ($j - $move)) {
+					$last = $j - $move;
+					echo $this->getCell($row[$last], $num, $line, $j, $class, $styles, $skipPlan, $mergeCells);
 				}
-				else if ($col !== null) echo $this->getColumn($current, $line, $col, $class ? $styles[$class] + 1 : null);
-
-				$current++;
-				if (isset($skipPlan[$num])) unset($skipPlan[$num]);
 			}
-
 			echo "</row>\n";
+
+			if (isset($skipPlan[$num])) unset($skipPlan[$num]);
 		}
 ?>
   </sheetData>
@@ -180,16 +150,63 @@ class ExporterXlsx extends Exporter {
 	}
 
 	/**
-	 * XLSX cell value
+	 * Get table cell
+	 * @param array<string, mixed>|string|float|int|null $col
 	 * @param int $num
 	 * @param int $line
-	 * @param string $val
-	 * @param int|null $style
+	 * @param int $j
+	 * @param string|null $class
+	 * @param array<string, int> $styles
+	 * @param array<int, array<int, int>> $skipPlan
+	 * @param array<string, string> $mergeCells
 	 * @return string
 	 */
-	protected function getColumn (int $num, int $line, string $val, int $style = null): string {
-		return '<c r="'.self::toAlpha($num).$line.'"'.($style ? ' s="'.$style.'"' : '').
-			(is_numeric($val) && ctype_digit(substr($val, 0, 1)) ? ' t="n"><v>'.$val.'</v>' : ' t="inlineStr"><is><t>'.self::xmlEntities($val).'</t></is>').'</c>';
+	private function getCell ($col, int $num, int $line, int $j, ?string $class, array $styles, array &$skipPlan, array &$mergeCells): string {
+		if (is_array($col)) {
+			if (isset($col['STYLE'])) {
+				if (!isset($styles[$col['STYLE']])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($col['STYLE'], ENT_QUOTES));
+				$class = $col['STYLE'];
+			}
+
+			if (isset($col['COLS']) && $col['COLS'] > 1 || isset($col['ROWS']) && $col['ROWS'] > 1) {
+				$cols = $col['COLS'] ?? 1;
+				$rows = $col['ROWS'] ?? 1;
+
+				$mergeCells[self::toAlpha($j).$line] = self::toAlpha($j + $cols - 1).($line + $rows - 1);
+
+				// addd empty cells under merged
+				if ($rows > 1) {
+					for ($i = 1; $i < $rows; $i++) {
+						$skipPlan[$num + $i][$j] = $cols;
+					}
+				}
+				if ($cols > 1) {
+					$skipPlan[$num][$j + 1] = $cols - 1;
+				}
+			}
+
+			return $this->getCellValue($col['VAL'] ?? '', $j, $line, $class ? $styles[$class] + 1 : null, $col);
+		}
+		else if ($col !== null) {
+			return $this->getCellValue($col, $j, $line, $class ? $styles[$class] + 1 : null);
+		}
+		return '';
+	}
+
+	/**
+	 * Get table cell value
+	 * @param string|float|int $val
+	 * @param int $num
+	 * @param int $line
+	 * @param int|null $style
+	 * @param array<string, mixed>|null $col
+	 * @return string
+	 */
+	private function getCellValue ($val, int $num, int $line, int $style = null, ?array $col = null): string {
+		$isNum = is_int($val) || is_float($val) || is_numeric($val) && ctype_digit(substr($val, 0, 1));
+		return '<c r="'.self::toAlpha($num).$line.'"'.($style ? ' s="'.$style.'"' : '').' t="'.($isNum ? 'n' : 'inlineStr').'">'.
+			(empty($col['FORMULA']) ? '' : '<f aca="false">'.htmlspecialchars($col['FORMULA'], ENT_QUOTES).'</f>').
+			($isNum ? '<v>'.$val.'</v>' : '<is><t>'.self::xmlEntities($val).'</t></is>').'</c>';
 	}
 
 	/**

@@ -86,8 +86,8 @@ class ExporterHtml extends Exporter {
 				echo "\t\t\t<tr>";
 				// render everything
 				foreach ($row as $col) {
-					if (is_array($col)) echo $this->getColumn($col['VAL'], $col['STYLE'] ?? $class, $col);
-					else echo $this->getColumn($col, $class);
+					if (is_array($col)) echo $this->getCell($col['VAL'] ?? '', $col['STYLE'] ?? $class, $col);
+					else echo $this->getCell($col, $class);
 				}
 				echo "</tr>\n";
 			}
@@ -110,10 +110,10 @@ class ExporterHtml extends Exporter {
 	 * @param array<string, mixed>|null $col
 	 * @return string
 	 */
-	protected function getColumn ($val, ?string $class = null, ?array $col = null): string {
+	protected function getCell ($val, ?string $class = null, ?array $col = null): string {
 		if ($val === null) return '';
 		$isNum = is_numeric($val);
-		return '<td'.($class || $isNum ? ' class="'.$class.($isNum ? ' number' : '').'"' : '').
+		return '<td'.($class || $isNum ? ' class="'.$class.($isNum ? ($class ? ' ' : '').'number' : '').'"' : '').
 				(isset($col['ROWS']) && $col['ROWS'] > 1 ? ' rowspan="'.$col['ROWS'].'"' : '').
 				(isset($col['COLS']) && $col['COLS'] > 1 ? ' colspan="'.$col['COLS'].'"' : '').
 				'>'.self::xmlEntities($val).'</td>';

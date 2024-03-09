@@ -14,7 +14,7 @@ use InvalidArgumentException;
  *
  * @author DaVee8k
  * @license https://unlicense.org/
- * @version 0.87.2
+ * @version 0.87.3
  */
 abstract class Exporter {
 	/** @var float */

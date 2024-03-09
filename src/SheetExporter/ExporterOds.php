@@ -148,39 +148,29 @@ class ExporterOds extends Exporter {
 				echo "</table:table-row>\n";
 			}
 
+			$skipPlan = [];
 			foreach ($sheet->getRows() as $num=>$row) {
-				$counter = 0;
+				$last = -1;
+				$move = 0;
 				$class = $sheet->getStyle($num);
 				if ($class && !isset($this->styles[$class])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
 				$height = $class && !empty($this->styles[$class]['HEIGHT']) ? 'ro_'.$class : $defHeight;
 
 				echo '        <table:table-row',($height ? ' table:style-name="'.$height.'"' : ''),'>';
-				foreach ($row as $col) {
+				for ($j = 0; $j <= $move + $sheet->getColCount(); $j++) {
 					// insert empty cells under merged
-					if (isset($spaces[0][$counter])) {
-						echo '<table:covered-table-cell table:number-columns-repeated="'.$spaces[0][$counter].'"/>';
-						$counter += $spaces[0][$counter];
+					if (isset($skipPlan[$num][$j])) {
+						echo '<table:covered-table-cell'.($skipPlan[$num][$j] > 1 ?' table:number-columns-repeated="'.$skipPlan[$num][$j].'"' : '').' />';
+						$move += $skipPlan[$num][$j];
 					}
-
-					// prepare merge cells and empty cells
-					if (is_array($col) && !empty($col['ROWS']) && $col['ROWS'] > 1) {
-						for ($i = 1; $i < $col['ROWS']; $i++) {
-							$spaces[$i][$counter] = empty($col['COLS']) ? 1 : $col['COLS'];
-						}
+					if (isset($row[$j - $move]) && $last < ($j - $move)) {
+						$last = $j - $move;
+						echo $this->getCell($row[$last], $num, $j, $class, $skipPlan);
 					}
-					$counter++;
-
-					if (is_array($col))	echo $this->getColumn($col['VAL'], $col['STYLE'] ?? $class, $col);
-					else if ($col !== null) echo $this->getColumn($col, $class);
-					else echo '<table:covered-table-cell/>';
-				}
-
-				// remove used dummy cells
-				if (!empty($spaces)) {
-					if (isset($spaces[0])) unset($spaces[0]);
-					if (!empty($spaces)) $spaces = array_values($spaces);
 				}
 				echo "</table:table-row>\n";
+
+				if (isset($skipPlan[$num])) unset($skipPlan[$num]);
 			}
 ?>
       </table:table>
@@ -196,19 +186,63 @@ class ExporterOds extends Exporter {
 	}
 
 	/**
-	 *
-	 * @param string $val
+	 * Get table cell
+	 * @param array<string, mixed>|string|float|int|null $col
+	 * @param int $num
+	 * @param int $j
+	 * @param string|null $class
+	 * @param array<int, array<int, int>> $skipPlan
+	 * @return string
+	 */
+	private function getCell ($col, int $num, int $j, ?string $class, array &$skipPlan): string {
+		if (isset($col['COLS']) && $col['COLS'] > 1 || isset($col['ROWS']) && $col['ROWS'] > 1) {
+			$cols = $col['COLS'] ?? 1;
+			$rows = $col['ROWS'] ?? 1;
+
+			// addd empty cells under merged
+			if ($rows > 1) {
+				for ($i = 1; $i < $rows; $i++) {
+					$skipPlan[$num + $i][$j] = $cols;
+				}
+			}
+			if ($cols > 1) {
+				$skipPlan[$num][$j + 1] = $cols - 1;
+			}
+		};
+
+		if (is_array($col))	return $this->getCellValue($col['VAL'] ?? '', $col['STYLE'] ?? $class, $col);
+		else if ($col !== null) return $this->getCellValue($col, $class);
+		return '';
+	}
+
+
+	/**
+	 * Get table cell value
+	 * @param string|float|int $val
 	 * @param string|null $class
 	 * @param array<string, mixed>|null $col
 	 * @return string
 	 */
-	protected function getColumn (string $val, ?string $class = null, ?array $col = null): string {
+	private function getCellValue ($val, ?string $class = null, ?array $col = null): string {
 		return '<table:table-cell'.($class ? ' table:style-name="tc_'.$class.'"' : '').
-			' '.(is_numeric($val) ? ' office:value-type="float" office:value="'.$val.'"' : 'office:value-type="string"').
+			' office:value-type='.(is_numeric($val) ? '"float" office:value="'.$val.'"' : '"string"').
+			(empty($col['FORMULA']) ? '' : ' table:formula="of:='.$this->reformatFormula($col['FORMULA']).'"').
 			(isset($col['COLS']) || isset($col['ROWS']) && $col['ROWS'] > 1 ? ' table:number-rows-spanned="'.($col['ROWS'] ?? 1).'"' : '').
 			(isset($col['COLS']) && $col['COLS'] > 1 ? ' table:number-columns-spanned="'.$col['COLS'].'"' : '').
-			'><text:p>'.self::xmlEntities($val).'</text:p></table:table-cell>'.
-			(isset($col['COLS']) && $col['COLS'] > 1 ? '<table:covered-table-cell table:number-columns-repeated="'.($col['COLS'] - 1).'" />' : '');
+			'><text:p>'.self::xmlEntities($val).'</text:p></table:table-cell>';
+	}
+
+	/**
+	 *
+	 * @param string $formula
+	 * @return string
+	 */
+	private function reformatFormula (string $formula): string {
+		return (string) preg_replace_callback(
+				'/(\$?[A-Z]+\$?[0-9]+)((\:?)(\$?[A-Z]+\$?[0-9]+))?/',
+				function($m) { return '[.'.$m[1].(isset($m[4]) ? $m[3].'.'.$m[4] : '').']'; },
+				$formula
+			);
 	}
 
 	/**

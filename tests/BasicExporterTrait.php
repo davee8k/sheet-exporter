@@ -30,7 +30,14 @@ trait BasicExporterTrait {
 
 		$sheet = $ex->insertSheet('List');
 
-		$sheet->addArray([['one with \' and "'], [['ROWS'=>3, 'VAL'=>'two'], 'two, next'], [['COLS'=>3, 'VAL'=>'three'], 'last'], [null], [['COLS'=>3, 'VAL'=>'four'], 'column, next'], [['ROWS'=>3, 'VAL'=>'three'], 'last']]);
+		$sheet->addArray([
+				['one with \' and "'],
+				[['ROWS'=>3, 'VAL'=>'two'], 'two, next'],
+				[['COLS'=>3, 'VAL'=>'three'], 'last'],
+				[null],
+				[['COLS'=>3, 'VAL'=>'four'], 'column, next'],
+				[['ROWS'=>3, 'VAL'=>'three'], 'last']
+			]);
 	}
 
 	protected function fillSheetComplex (Exporter $ex): void {
@@ -47,6 +54,13 @@ trait BasicExporterTrait {
 		$sheet->addRow([['COLS'=>4, 'ROWS'=>2, 'VAL'=>'super radek'], 'další&znak'], 'two');
 		$sheet->addRow(['End?'], 'three');
 		$sheet->addRow(['final','row']);
+	}
+
+	protected function fillSheetFormula (Exporter $ex): void {
+		$sheet = $ex->insertSheet('List');
+
+		$sheet->addRow([1,2,3,4,"test"]);
+		$sheet->addRow([['FORMULA'=>'SUM(A1:D1)'], ['FORMULA'=>'$E$1']]);
 	}
 
 	/**
