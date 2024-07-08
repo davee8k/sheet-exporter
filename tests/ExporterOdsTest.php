@@ -2,7 +2,9 @@
 
 use SheetExporter\ExporterOds;
 
-class ExporterOdsTest extends \PHPUnit\Framework\TestCase {
+use PHPUnit\Framework\TestCase;
+
+class ExporterOdsTest extends TestCase {
 	use BasicExporterTrait;
 
 	public function testExportBasic (): void {

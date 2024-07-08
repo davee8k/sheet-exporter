@@ -1,15 +1,21 @@
 <?php declare(strict_types=1);
 
-use SheetExporter\Exporter,
-	SheetExporter\ExporterHtml,
-	SheetExporter\ExporterXlsx,
-	SheetExporter\ExporterOds,
-	SheetExporter\ExporterCsv,
-	SheetExporter\Sheet;
+use SheetExporter\Exporter;
+use SheetExporter\ExporterHtml;
+use SheetExporter\ExporterXlsx;
+use SheetExporter\ExporterOds;
+use SheetExporter\ExporterCsv;
+use SheetExporter\Sheet;
+
+use PHPUnit\Framework\Attributes\DataProvider;
 
 trait BasicExporterTrait {
 
-	public function dataExporters () {
+	/**
+	 *
+	 * @return array<string, array{Exporter}>
+	 */
+	public static function dataExporters (): array {
 		return [
 			'HTML' => [new ExporterHtml('test')],
 			'XLSX' => [new ExporterXlsx('test')],
@@ -18,7 +24,14 @@ trait BasicExporterTrait {
 		];
 	}
 
-	protected function callPrivateMethod ($obj, $name, $args = []) {
+	/**
+	 *
+	 * @param Exporter $obj
+	 * @param string $name
+	 * @param mixed[] $args
+	 * @return string
+	 */
+	protected function callPrivateMethod (Exporter $obj, string $name, array $args = []) {
 		$class = new \ReflectionClass($obj);
 		$method = $class->getMethod($name);
 		$method->setAccessible(true);
@@ -63,10 +76,7 @@ trait BasicExporterTrait {
 		$sheet->addRow([['FORMULA'=>'SUM(A1:D1)'], ['FORMULA'=>'$E$1']]);
 	}
 
-	/**
-	 *
-	 * @dataProvider dataExporters
-	 */
+	#[DataProvider('dataExporters')]
 	public function testBaseExport (Exporter $ex): void {
 		$this->assertEquals('SheetExporter '.Exporter::VERSION, $ex->getVersion());
 
@@ -77,18 +87,17 @@ trait BasicExporterTrait {
 		$ex->addSheet(new Sheet('Test'));
 		$this->assertEquals(3, count($ex->getSheets()));
 
-		$this->expectException('InvalidArgumentException', 'Sheet name already exists.');
+		$this->expectException('InvalidArgumentException');
+		$this->expectExceptionMessage('Sheet name already exists.');
 		$ex->addSheet(new Sheet('Test'));
 	}
 
-	/**
-	 *
-	 * @dataProvider dataExporters
-	 */
+	#[DataProvider('dataExporters')]
 	public function testStyleExportFail (Exporter $ex): void {
 		$ex->setDefault([], ['COLOR'=>'#fff000', 'LEFT'=>['COLOR'=>'#000fff']]);
 		$ex->addStyle('style');
-		$this->expectException('InvalidArgumentException', 'Style mark must by small alfanumeric only.');
+		$this->expectException('InvalidArgumentException');
+		$this->expectExceptionMessage('Style mark must by small alphanumeric only.');
 		$ex->addStyle('fa.il');
 	}
 }

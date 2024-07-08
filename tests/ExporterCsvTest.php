@@ -2,7 +2,9 @@
 
 use SheetExporter\ExporterCsv;
 
-class ExporterCsvTest extends \PHPUnit\Framework\TestCase {
+use PHPUnit\Framework\TestCase;
+
+class ExporterCsvTest extends TestCase {
 	use BasicExporterTrait;
 
 	public function testExportBasic (): void {

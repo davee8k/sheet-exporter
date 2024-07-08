@@ -2,7 +2,9 @@
 
 use SheetExporter\Sheet;
 
-class SheetTest extends \PHPUnit\Framework\TestCase {
+use PHPUnit\Framework\TestCase;
+
+class SheetTest extends TestCase {
 
 	public function testCreateSheet (): void {
 		$sheet = new Sheet('<h2>test</h2>');

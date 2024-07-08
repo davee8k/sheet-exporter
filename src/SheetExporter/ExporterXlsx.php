@@ -2,9 +2,9 @@
 
 namespace SheetExporter;
 
-use RuntimeException,
-	InvalidArgumentException,
-	ZipArchive;
+use RuntimeException;
+use InvalidArgumentException;
+use ZipArchive;
 
 /**
  * Export to Xlsx

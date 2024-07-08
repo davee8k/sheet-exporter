@@ -2,7 +2,9 @@
 
 use SheetExporter\ExporterXlsx;
 
-class ExporterXlsxTest extends \PHPUnit\Framework\TestCase {
+use PHPUnit\Framework\TestCase;
+
+class ExporterXlsxTest extends TestCase {
 	use BasicExporterTrait;
 
 	public function testExportBasic (): void {

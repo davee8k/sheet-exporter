@@ -1,9 +1,11 @@
 <?php declare(strict_types=1);
 
-use SheetExporter\Exporter,
-	SheetExporter\ExporterHtml;
+use SheetExporter\Exporter;
+use SheetExporter\ExporterHtml;
 
-class ExporterHtmlTest extends \PHPUnit\Framework\TestCase {
+use PHPUnit\Framework\TestCase;
+
+class ExporterHtmlTest extends TestCase {
 	use BasicExporterTrait;
 
 	public function testExportBasic (): void {

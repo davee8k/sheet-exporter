@@ -2,7 +2,9 @@
 
 use SheetExporter\Exporter;
 
-class BasicExporterTest extends \PHPUnit\Framework\TestCase {
+use PHPUnit\Framework\TestCase;
+
+class BasicExporterTest extends TestCase {
 
 	public function testEntityConversion (): void {
 		$this->assertEquals('&lt;test&gt;&quot;&apos;&amp;hi', Exporter::xmlEntities('<test>"\'&hi'));
@@ -21,17 +23,20 @@ class BasicExporterTest extends \PHPUnit\Framework\TestCase {
 	}
 
 	public function testConvertUnitFailFirst (): void {
-		$this->expectException('InvalidArgumentException', 'Unknown input measure unit: fail');
+		$this->expectException('InvalidArgumentException');
+		$this->expectExceptionMessage('Unknown input measure unit: fail');
 		Exporter::convertSize(1, 'fail', 'mm');
 	}
 
 	public function testConvertUnitFailSecond (): void {
-		$this->expectException('InvalidArgumentException', 'Unknown output measure unit: fail');
+		$this->expectException('InvalidArgumentException');
+		$this->expectExceptionMessage('Unknown output measure unit: fail');
 		Exporter::convertSize(1, 'mm', 'fail');
 	}
 
 	public function testConvertBadValueFail (): void {
-		$this->expectException('InvalidArgumentException', 'Unknown measure value: 10,,');
+		$this->expectException('InvalidArgumentException');
+		$this->expectExceptionMessage('Unknown measure value: 10,,');
 		Exporter::convertSize('10,,');
 	}
 }
