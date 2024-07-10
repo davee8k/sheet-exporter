@@ -68,6 +68,136 @@ class ExporterOds extends Exporter {
   <office:font-face-decls/>
   <office:automatic-styles>
 <?php
+		$this->printColStyles();
+
+		if (!empty($this->defaultStyle['HEIGHT'])) {
+			$defHeight = 'rdef';
+?>
+    <style:style style:name="<?=$defHeight;?>" style:family="table-row">
+      <style:table-row-properties style:row-height="<?=self::convertSize($this->defaultStyle['HEIGHT'], self::UNITS, 'mm');?>mm" />
+    </style:style>
+<?php
+		}
+
+		// row styles
+		foreach ($this->styles as $mark=>$style) {
+?>
+    <style:style style:name="tc_<?=$mark;?>" style:family="table-cell">
+<?php
+		echo $this->getStyle($style);
+?>
+    </style:style>
+<?php
+			if (!empty($style['HEIGHT'])) {
+?>
+    <style:style style:name="ro_<?=$mark;?>" style:family="table-row">
+      <style:table-row-properties style:row-height="<?=self::convertSize($style['HEIGHT'], self::UNITS, 'mm');?>mm" />
+    </style:style>
+<?php
+			}
+		}
+?>
+  </office:automatic-styles>
+  <office:body>
+    <office:spreadsheet>
+<?php
+		foreach ($this->sheets as $sid=>$sheet) {
+?>
+      <table:table table:name="<?=$sheet->getName();?>">
+<?php
+			$this->printColWidths($sheet, $sid);
+
+			$this->printHeader($sheet);
+			$this->printSheet($sheet, $defHeight);
+?>
+      </table:table>
+<?php
+		}
+?>
+      <table:named-expressions/>
+    </office:spreadsheet>
+  </office:body>
+</office:document-content>
+<?php
+		return ob_get_clean() ?: '';
+	}
+
+	/**
+	 * Print sheet header
+	 * @param Sheet $sheet
+	 */
+	private function printHeader (Sheet $sheet): void {
+		if (!empty($sheet->getHeaders())) {
+			echo '<table:table-row>';
+			foreach ($sheet->getHeaders() as $name) echo '<table:table-cell office:value-type="string"><text:p>'.self::xmlEntities($name).'</text:p></table:table-cell>';
+			echo "</table:table-row>\n";
+		}
+	}
+
+	/**
+	 * Print sheet content
+	 * @param Sheet $sheet
+	 * @param string|null $defHeight
+	 * @throws InvalidArgumentException
+	 */
+	private function printSheet (Sheet $sheet, ?string $defHeight): void {
+		$skipPlan = [];
+		foreach ($sheet->getRows() as $num=>$row) {
+			$last = -1;
+			$move = 0;
+			$class = $sheet->getStyle($num);
+			$height = $this->getRowHeight($class, $defHeight);
+
+			echo '        <table:table-row',($height ? ' table:style-name="'.$height.'"' : ''),'>';
+			for ($j = 0; $j <= $move + $sheet->getColCount(); $j++) {
+				// insert empty cells under merged
+				if (isset($skipPlan[$num][$j])) {
+					echo '<table:covered-table-cell'.($skipPlan[$num][$j] > 1 ?' table:number-columns-repeated="'.$skipPlan[$num][$j].'"' : '').' />';
+					$move += $skipPlan[$num][$j];
+				}
+				if (isset($row[$j - $move]) && $last < ($j - $move)) {
+					$last = $j - $move;
+					echo $this->getCell($row[$last], $num, $j, $class, $skipPlan);
+				}
+			}
+			echo "</table:table-row>\n";
+
+			if (isset($skipPlan[$num])) unset($skipPlan[$num]);
+		}
+	}
+
+	/**
+	 *  Print columns widths
+	 * @param Sheet $sheet
+	 * @param string|int $sid
+	 */
+	private function printColWidths (Sheet $sheet, $sid): void {
+		$count = count($sheet->getCols());
+		if ($count === 0) {
+?>
+        <table:table-column/>
+<?php
+		}
+		else {
+			$keys = array_keys($sheet->getCols());
+			foreach ($keys as $num) {
+?>
+        <table:table-column table:style-name="col_<?=$sid.'_'.$num;?>" />
+<?php
+			}
+
+			if ($sheet->getDefCol() && $count < $sheet->getColCount()) {
+?>
+        <table:table-column table:style-name="col_<?=$sid;?>_default" table:number-columns-repeated="<?=$sheet->getColCount() - $count;?>" />
+<?php
+			}
+		}
+	}
+
+	/**
+	 * Print columns styles
+	 */
+	private function printColStyles (): void {
 		// columns widths
 		foreach ($this->sheets as $sid=>$sheet) {
 			foreach ($sheet->getCols() as $num=>$col) {
@@ -86,103 +216,6 @@ class ExporterOds extends Exporter {
 <?php
 			}
 		}
-
-		if (!empty($this->defaultStyle['HEIGHT'])) {
-			$defHeight = 'rdef';
-?>
-    <style:style style:name="<?=$defHeight;?>" style:family="table-row">
-      <style:table-row-properties style:row-height="<?=self::convertSize($this->defaultStyle['HEIGHT'], self::UNITS, 'mm');?>mm" />
-    </style:style>
-<?php
-		}
-
-		// row styles
-		foreach ($this->styles as $mark=>$style) {
-?>
-    <style:style style:name="tc_<?=$mark;?>" style:family="table-cell">
-<?php
-		echo $this->getStyleElm($style);
-?>
-    </style:style>
-<?php
-			if (!empty($style['HEIGHT'])) {
-?>
-    <style:style style:name="ro_<?=$mark;?>" style:family="table-row">
-      <style:table-row-properties style:row-height="<?=self::convertSize($style['HEIGHT'], self::UNITS, 'mm');?>mm" />
-    </style:style>
-<?php
-			}
-		}
-?>
-  </office:automatic-styles>
-  <office:body>
-    <office:spreadsheet>
-<?php
-		foreach ($this->sheets as $sid=>$sheet) {
-			$spaces = [];
-?>
-      <table:table table:name="<?=$sheet->getName();?>">
-<?php
-			if (count($sheet->getCols()) === 0) {
-?>
-        <table:table-column/>
-<?php
-			}
-			else {
-				foreach ($sheet->getCols() as $num=>$col) {
-?>
-        <table:table-column table:style-name="col_<?=$sid.'_'.$num;?>" />
-<?php
-				}
-
-				if ($sheet->getDefCol() && count($sheet->getCols()) < $sheet->getColCount()) {
-?>
-        <table:table-column table:style-name="col_<?=$sid;?>_default" table:number-columns-repeated="<?=$sheet->getColCount() - count($sheet->getCols());?>" />
-<?php
-				}
-			}
-
-			if (count($sheet->getHeaders()) !== 0) {
-				echo '<table:table-row>';
-				foreach ($sheet->getHeaders() as $name) echo '<table:table-cell office:value-type="string"><text:p>'.self::xmlEntities($name).'</text:p></table:table-cell>';
-				echo "</table:table-row>\n";
-			}
-
-			$skipPlan = [];
-			foreach ($sheet->getRows() as $num=>$row) {
-				$last = -1;
-				$move = 0;
-				$class = $sheet->getStyle($num);
-				if ($class && !isset($this->styles[$class])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
-				$height = $class && !empty($this->styles[$class]['HEIGHT']) ? 'ro_'.$class : $defHeight;
-
-				echo '        <table:table-row',($height ? ' table:style-name="'.$height.'"' : ''),'>';
-				for ($j = 0; $j <= $move + $sheet->getColCount(); $j++) {
-					// insert empty cells under merged
-					if (isset($skipPlan[$num][$j])) {
-						echo '<table:covered-table-cell'.($skipPlan[$num][$j] > 1 ?' table:number-columns-repeated="'.$skipPlan[$num][$j].'"' : '').' />';
-						$move += $skipPlan[$num][$j];
-					}
-					if (isset($row[$j - $move]) && $last < ($j - $move)) {
-						$last = $j - $move;
-						echo $this->getCell($row[$last], $num, $j, $class, $skipPlan);
-					}
-				}
-				echo "</table:table-row>\n";
-
-				if (isset($skipPlan[$num])) unset($skipPlan[$num]);
-			}
-?>
-      </table:table>
-<?php
-		}
-?>
-      <table:named-expressions/>
-    </office:spreadsheet>
-  </office:body>
-</office:document-content>
-<?php
-		return ob_get_clean() ?: '';
 	}
 
 	/**
@@ -233,6 +266,25 @@ class ExporterOds extends Exporter {
 	}
 
 	/**
+	 * Return row height
+	 * @param string|null $class
+	 * @param string|null $default
+	 * @return string|null
+	 * @throws InvalidArgumentException
+	 */
+	private function getRowHeight (?string $class, ?string $default): ?string {
+		if ($class) {
+			if (isset($this->styles[$class])) {
+				if (!empty($this->styles[$class]['HEIGHT'])) return 'ro_'.$class;
+			}
+			else {
+				throw new InvalidArgumentException('Missing style: '.htmlspecialchars((string) $class, ENT_QUOTES));
+			}
+		}
+		return $default;
+	}
+
+	/**
 	 *
 	 * @param string $formula
 	 * @return string
@@ -240,7 +292,7 @@ class ExporterOds extends Exporter {
 	private function reformatFormula (string $formula): string {
 		return (string) preg_replace_callback(
 				'/(\$?[A-Z]+\$?[0-9]+)((\:?)(\$?[A-Z]+\$?[0-9]+))?/',
-				function($m) { return '[.'.$m[1].(isset($m[4]) ? $m[3].'.'.$m[4] : '').']'; },
+				function($arg) { return '[.'.$arg[1].(isset($arg[4]) ? $arg[3].'.'.$arg[4] : '').']'; },
 				$formula
 			);
 	}
@@ -250,45 +302,59 @@ class ExporterOds extends Exporter {
 	 * @param array<string, mixed> $style
 	 * @return string
 	 */
-	private function getStyleElm (array $style): string {
-		$t = '';
+	private function getStyle (array $style): string {
+		$txt = '';
 		if (isset($style['FONT'])) {
-			$f =& $style['FONT'];
-			if (isset($f['SIZE']) && is_numeric($f['SIZE'])) $f['SIZE'] .= self::UNITS;
-			$t .= '      <style:text-properties'.(isset($f['COLOR']) ? ' fo:color="'.$f['COLOR'].'"' : '').
-				(isset($f['WEIGHT']) ? ' fo:font-weight="'.$f['WEIGHT'].'" style:font-weight-asian="'.$f['WEIGHT'].'" style:font-weight-complex="'.$f['WEIGHT'].'"' : '').
-				(isset($f['SIZE']) ? ' fo:font-size="'.$f['SIZE'].'" style:font-size-asian="'.$f['SIZE'].'" style:font-size-complex="'.$f['SIZE'].'"' : '').
-				(isset($f['FAMILY']) ? ' style:font-name="'.$f['FAMILY'].'" style:font-name-asian="'.$f['FAMILY'].'" style:font-name-complex="'.$f['FAMILY'].'"' : '').
-				(isset($f['BACKGROUND']) ? ' fo:background-color="'.$f['BACKGROUND'].'"' : '')." />\n";
-
-			if (isset($f['ALIGN'])) {
-				$t .= '      <style:paragraph-properties fo:text-align="'.str_ireplace(['left','right'], ['start','end'], $f['ALIGN']).'" />'."\n";
-			}
+			$txt .= $this->getStyleFont($style['FONT']);
 		}
 		if (isset($style['CELL'])) {
-			$c =& $style['CELL'];
-			$t .= '      <style:table-cell-properties'.(isset($c['BACKGROUND']) ? ' fo:background-color="'.$c['BACKGROUND'].'"' : '');
-			if (isset($c['WIDTH']) || isset($c['STYLE']) || isset($c['COLOR'])) $t.= $this->getBorderStyle($c);
+			$txt .= '      <style:table-cell-properties'.(isset($style['CELL']['BACKGROUND']) ? ' fo:background-color="'.$style['CELL']['BACKGROUND'].'"' : '');
+			if ($this->isBorderStyle($style['CELL'], self::$borderStyles)) {
+				$txt.= $this->getBorderStyle($style['CELL']);
+			}
 			else {
 				foreach (self::$borderTypes as $key=>$mark) {
-					if (!empty($c[$mark])) $t.= $this->getBorderStyle($c[$mark], $key);
+					if (!empty($style['CELL'][$mark])) {
+						$txt.= $this->getBorderStyle($style['CELL'][$mark], '-'.$key);
+					}
 				}
 			}
-			$t .= " />\n";
+			$txt .= " />\n";
 		}
-		return $t;
+		return $txt;
+	}
+
+	/**
+	 * Returns font style
+	 * @param array<string, mixed> $style
+	 * @return string
+	 */
+	private function getStyleFont (array $style): string {
+		$txt = '      <style:text-properties';
+		if (isset($style['COLOR']))  $txt .= ' fo:color="'.$style['COLOR'].'"';
+		if (isset($style['WEIGHT']))  $txt .= ' fo:font-weight="'.$style['WEIGHT'].'" style:font-weight-asian="'.$style['WEIGHT'].'" style:font-weight-complex="'.$style['WEIGHT'].'"';
+		if (isset($style['SIZE'])) {
+			if (is_numeric($style['SIZE'])) $style['SIZE'] .= self::UNITS;
+			$txt .= ' fo:font-size="'.$style['SIZE'].'" style:font-size-asian="'.$style['SIZE'].'" style:font-size-complex="'.$style['SIZE'].'"';
+		}
+		if (isset($style['FAMILY']))  $txt .= ' style:font-name="'.$style['FAMILY'].'" style:font-name-asian="'.$style['FAMILY'].'" style:font-name-complex="'.$style['FAMILY'].'"';
+		if (isset($style['BACKGROUND']))  $txt .= ' fo:background-color="'.$style['BACKGROUND'].'"';
+		$txt .= " />\n";
+
+		if (isset($style['ALIGN'])) $txt .= '      <style:paragraph-properties fo:text-align="'.str_ireplace(['left','right'], ['start','end'], $style['ALIGN']).'" />'."\n";
+		return $txt;
 	}
 
 	/**
 	 *
 	 * @param array<string, mixed> $style
-	 * @param string|null $side
+	 * @param string $side
 	 * @return string
 	 */
-	private function getBorderStyle (array $style, ?string $side = null): string {
-		$t = ' fo:border'.($side ? '-'.$side : '').'= "';
-		if (isset($style['WIDTH'])) $t .= self::convertSize($style['WIDTH'], self::UNITS).self::UNITS.' ';
-		return $t.($style['STYLE'] ?? 'solid').' '.($style['COLOR'] ?? static::$defColor).'"';
+	private function getBorderStyle (array $style, string $side = ''): string {
+		$txt = ' fo:border'.$side.'= "';
+		if (isset($style['WIDTH'])) $txt .= self::convertSize($style['WIDTH'], self::UNITS).self::UNITS.' ';
+		return $txt.($style['STYLE'] ?? 'solid').' '.($style['COLOR'] ?? static::$defColor).'"';
 	}
 
 	/**
@@ -307,7 +373,7 @@ class ExporterOds extends Exporter {
     <style:style style:name="Default" style:family="table-cell" style:data-style-name="N0">
       <style:table-cell-properties style:vertical-align="automatic" fo:background-color="transparent" />
 <?php
-		if (!empty($this->defaultStyle)) echo $this->getStyleElm($this->defaultStyle);
+		if (!empty($this->defaultStyle)) echo $this->getStyle($this->defaultStyle);
 		if (empty($this->defaultStyle) || empty($this->defaultStyle['FONT']['COLOR'])) echo '      <style:text-properties fo:color="'.static::$defColor.'" />',"\n";
 ?>
     </style:style>

@@ -51,46 +51,13 @@ class ExporterHtml extends Exporter {
 	<table border="1" cellspacing="0" cellpadding="5">
 		<caption><?=$sheet->getName();?></caption>
 <?php
-		if (count($sheet->getCols()) !== 0) {
-			foreach ($sheet->getCols() as $width) {
-?>
-		<col style="width: <?=self::convertSize($width, self::UNITS).self::UNITS;?>" />
-<?php
-			}
-		}
+		$this->printColWidths($sheet);
 
-		if ($sheet->getDefCol() && count($sheet->getCols()) < $sheet->getColCount()) {
-			$width = self::convertSize($sheet->getDefCol(), self::UNITS).self::UNITS;
-			for ($i = count($sheet->getCols()); $i < $sheet->getColCount(); $i++) {
-?>
-		<col style="width: <?=$width;?>" />
-<?php
-			}
-		}
-		if (count($sheet->getHeaders()) !== 0) {
-?>
-		<thead>
-			<tr>
-				<?php foreach ($sheet->getHeaders() as $name) echo '<th>'.self::xmlEntities($name).'</th>';?>
-			</tr>
-		</thead>
-<?php
-		}
+		$this->printHeader($sheet);
 ?>
 		<tbody>
 <?php
-			foreach ($sheet->getRows() as $num=>$row) {
-				$class = $sheet->getStyle($num);
-				if ($class && !isset($this->styles[$class])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
-
-				echo "\t\t\t<tr>";
-				// render everything
-				foreach ($row as $col) {
-					if (is_array($col)) echo $this->getCell($col['VAL'] ?? '', $col['STYLE'] ?? $class, $col);
-					else echo $this->getCell($col, $class);
-				}
-				echo "</tr>\n";
-			}
+		$this->printSheet($sheet);
 ?>
 		</tbody>
 	</table>
@@ -104,6 +71,65 @@ class ExporterHtml extends Exporter {
 	}
 
 	/**
+	 * Print sheet header
+	 * @param Sheet $sheet
+	 */
+	private function printHeader (Sheet $sheet): void {
+		if (!empty($sheet->getHeaders())) {
+?>
+		<thead>
+			<tr>
+				<?php foreach ($sheet->getHeaders() as $name) echo '<th>'.self::xmlEntities($name).'</th>';?>
+			</tr>
+		</thead>
+<?php
+		}
+	}
+
+	/**
+	 * Print sheet content
+	 * @param Sheet $sheet
+	 */
+	private function printSheet (Sheet $sheet): void {
+		foreach ($sheet->getRows() as $num=>$row) {
+			$class = $sheet->getStyle($num);
+			if ($class && !isset($this->styles[$class])) throw new InvalidArgumentException('Missing style: '.htmlspecialchars($class, ENT_QUOTES));
+
+			echo "\t\t\t<tr>";
+			// render everything
+			foreach ($row as $col) {
+				if (is_array($col)) echo $this->getCell($col['VAL'] ?? '', $col['STYLE'] ?? $class, $col);
+				else echo $this->getCell($col, $class);
+			}
+			echo "</tr>\n";
+		}
+	}
+
+	/**
+	 * Print columns widths
+	 * @param Sheet $sheet
+	 */
+	private function printColWidths (Sheet $sheet): void {
+		$count = count($sheet->getCols());
+		if ($count !== 0) {
+			foreach ($sheet->getCols() as $width) {
+?>
+		<col style="width: <?=self::convertSize($width, self::UNITS).self::UNITS;?>" />
+<?php
+			}
+		}
+
+		if ($sheet->getDefCol() && $count < $sheet->getColCount()) {
+			$width = self::convertSize($sheet->getDefCol(), self::UNITS).self::UNITS;
+			for ($i = $count; $i < $sheet->getColCount(); $i++) {
+?>
+		<col style="width: <?=$width;?>" />
+<?php
+			}
+		}
+	}
+
+	/**
 	 * Get table cell
 	 * @param string|float|int|null $val
 	 * @param string|null $class
@@ -112,8 +138,8 @@ class ExporterHtml extends Exporter {
 	 */
 	protected function getCell ($val, ?string $class = null, ?array $col = null): string {
 		if ($val === null) return '';
-		$isNum = is_numeric($val);
-		return '<td'.($class || $isNum ? ' class="'.$class.($isNum ? ($class ? ' ' : '').'number' : '').'"' : '').
+		if (is_numeric($val)) $class = ($class === null ? '' : $class.' ').'number';
+		return '<td'.($class ? ' class="'.$class.'"' : '').
 				(isset($col['ROWS']) && $col['ROWS'] > 1 ? ' rowspan="'.$col['ROWS'].'"' : '').
 				(isset($col['COLS']) && $col['COLS'] > 1 ? ' colspan="'.$col['COLS'].'"' : '').
 				'>'.self::xmlEntities($val).'</td>';
@@ -126,25 +152,47 @@ class ExporterHtml extends Exporter {
 	 */
 	private function getStyle (array $style): array {
 		$data = [];
-		if (isset($style['FONT']['COLOR'])) $data[] = 'color: '.$style['FONT']['COLOR'];
-		if (isset($style['FONT']['SIZE'])) $data[] = 'font-size: '.self::convertSize($style['FONT']['SIZE'], self::UNITS).self::UNITS;
-		if (isset($style['FONT']['FAMILY'])) $data[] = 'font-family: "'.$style['FONT']['FAMILY'].'"';
-		if (isset($style['FONT']['WEIGHT'])) $data[] = 'font-weight: '.$style['FONT']['WEIGHT'];
-		if (isset($style['FONT']['ALIGN'])) $data[] = 'text-align: '.$style['FONT']['ALIGN'];
+		if (!empty($style['FONT'])) $data = $this->getStyleFont($data, $style['FONT']);
+		if (!empty($style['CELL'])) $data = $this->getStyleCell($data, $style['CELL']);
 
-		if (isset($style['CELL']['BACKGROUND'])) $data[] = 'background-color: '.$style['CELL']['BACKGROUND'];
+		if (isset($style['HEIGHT']) && $style['HEIGHT'] !== null) {
+			$data[] = 'height: '.self::convertSize($style['HEIGHT'], self::UNITS).self::UNITS;
+		}
+		return $data;
+	}
 
-		if (isset($style['CELL']['COLOR']) || isset($style['CELL']['STYLE']) || isset($style['CELL']['WIDTH'])) {
-			$data = $this->getBorderStyle($data, 'border', $style['CELL']);
+	/**
+	 * Returns font style
+	 * @param string[] $data
+	 * @param array<string, mixed> $style
+	 * @return string[]
+	 */
+	private function getStyleFont (array $data, array $style): array {
+		if (isset($style['COLOR'])) $data[] = 'color: '.$style['COLOR'];
+		if (isset($style['SIZE'])) $data[] = 'font-size: '.self::convertSize($style['SIZE'], self::UNITS).self::UNITS;
+		if (isset($style['FAMILY'])) $data[] = 'font-family: "'.$style['FAMILY'].'"';
+		if (isset($style['WEIGHT'])) $data[] = 'font-weight: '.$style['WEIGHT'];
+		if (isset($style['ALIGN'])) $data[] = 'text-align: '.$style['ALIGN'];
+		return $data;
+	}
+
+	/**
+	 * Returns cells border and background
+	 * @param string[] $data
+	 * @param array<string, mixed> $style
+	 * @return string[]
+	 */
+	private function getStyleCell (array $data, array $style): array {
+		if (isset($style['BACKGROUND'])) $data[] = 'background-color: '.$style['BACKGROUND'];
+
+		if ($this->isBorderStyle($style, self::$borderStyles)) {
+			$data = $this->getStyleBorder($data, 'border', $style);
 		}
 		else {
-			if (!empty($style['CELL']['LEFT'])) $data = $this->getBorderStyle($data, 'border-left', $style['CELL']['LEFT']);
-			if (!empty($style['CELL']['RIGHT'])) $data = $this->getBorderStyle($data, 'border-right', $style['CELL']['RIGHT']);
-			if (!empty($style['CELL']['TOP'])) $data = $this->getBorderStyle($data, 'border-top', $style['CELL']['TOP']);
-			if (!empty($style['CELL']['BOTTOM'])) $data = $this->getBorderStyle($data, 'border-bottom', $style['CELL']['BOTTOM']);
+			foreach (self::$borderTypes as $key=>$mark) {
+				if (!empty($style[$mark])) $data = $this->getStyleBorder($data, 'border-'.$key, $style[$mark]);
+			}
 		}
-
-		if (isset($style['HEIGHT']) && $style['HEIGHT'] !== null) $data[] = 'height: '.self::convertSize($style['HEIGHT'], self::UNITS).self::UNITS;
 		return $data;
 	}
 
@@ -155,7 +203,7 @@ class ExporterHtml extends Exporter {
 	 * @param array<string, mixed> $style
 	 * @return string[]
 	 */
-	private function getBorderStyle (array $data, string $side, array $style = null): array {
+	private function getStyleBorder (array $data, string $side, array $style = null): array {
 		if (isset($style['COLOR'])) $data[] = $side.'-color: '.$style['COLOR'];
 		if (isset($style['STYLE'])) $data[] = $side.'-style: '.$style['STYLE'];
 		if (isset($style['WIDTH'])) $data[] = $side.'-width: '.self::convertSize($style['WIDTH'], self::UNITS).self::UNITS;

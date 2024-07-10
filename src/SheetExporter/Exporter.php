@@ -14,7 +14,7 @@ use InvalidArgumentException;
  *
  * @author DaVee8k
  * @license https://unlicense.org/
- * @version 0.87.3
+ * @version 0.87.4
  */
 abstract class Exporter {
 	/** @var float */
@@ -25,7 +25,9 @@ abstract class Exporter {
 	protected const XML_HEADER = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
 
 	/** @var array<string, string> */
-	public static $borderTypes = ['left'=>'LEFT','right'=>'RIGHT','top'=>'TOP','bottom'=>'BOTTOM'];
+	public static $borderTypes = ['left'=>'LEFT', 'right'=>'RIGHT', 'top'=>'TOP', 'bottom'=>'BOTTOM'];
+	/** @var string[] */
+	public static $borderStyles = ['COLOR', 'STYLE', 'WIDTH'];
 	/** @var string */
 	public static $defColor = '#000000';
 
@@ -134,16 +136,16 @@ abstract class Exporter {
 	/**
 	 * Check if chosen name is unique - if not change it
 	 * @param string $newName
-	 * @param int $i
+	 * @param int $count
 	 * @return string
 	 */
-	protected function checkUniqueName (string $newName, int $i = 0): string {
+	protected function checkUniqueName (string $newName, int $count = 0): string {
 		foreach ($this->sheets as $sheet) {
-			if ($sheet->getName() == $newName.($i ? '_'.$i : '')) {
-				return $this->checkUniqueName($newName, ++$i);
+			if ($sheet->getName() == $newName.($count ? '_'.$count : '')) {
+				return $this->checkUniqueName($newName, ++$count);
 			}
 		}
-		return $newName.($i ? '_'.$i : '');
+		return $newName.($count ? '_'.$count : '');
 	}
 
 	/**
@@ -154,19 +156,30 @@ abstract class Exporter {
 	protected function prepareBorder (array $cell): array {
 		if (empty($cell)) return [];
 
-		$global = isset($cell['COLOR']) || isset($cell['STYLE']) || isset($cell['WIDTH']);
-		$local = isset($cell['LEFT']) || isset($cell['RIGHT']) || isset($cell['TOP']) || isset($cell['BOTTOM']);
-		if ($global && $local) {
-			foreach (['COLOR','STYLE','WIDTH'] as $type) {
+		if ($this->isBorderStyle($cell, self::$borderStyles) && $this->isBorderStyle($cell, self::$borderTypes)) {
+			foreach (self::$borderStyles as $type) {
 				if (isset($cell[$type])) {
 					foreach (self::$borderTypes as $side) {
-						if (!isset($cell[$side]) || (!empty($cell[$side]) && !isset($cell[$side][$type]))) $cell[$side][$type] = $cell[$type];
+						if (!isset($cell[$side]) || !isset($cell[$side][$type])) $cell[$side][$type] = $cell[$type];
 					}
 					unset($cell[$type]);
 				}
 			}
 		}
 		return $cell;
+	}
+
+	/**
+	 * Checks border style existence
+	 * @param array<string, mixed> $cell
+	 * @param array<string|int, string> $params
+	 * @return bool
+	 */
+	protected function isBorderStyle (array $cell, array $params): bool {
+		foreach ($params as $mark) {
+			if (isset($cell[$mark])) return true;
+		}
+		return false;
 	}
 
 	/**
@@ -181,7 +194,7 @@ abstract class Exporter {
 
 	/**
 	 * Convert between different measure systems
-	 * @param string|float $num	Value
+	 * @param string|float|int $num	Value
 	 * @param string $def	Measure unit
 	 * @param string|null $out	Measure unit
 	 * @return float
@@ -197,29 +210,49 @@ abstract class Exporter {
 
 		if (preg_match('/[a-z]+$/i', $num, $match)) {
 			$units = $match[0];
-			$val = floatval(str_replace($units, '', $num));
-
-			switch ($units) {
-				case 'em': return $val;
-				case 'px': break;
-				case 'pt': $val *= 96/72; break;
-				case 'pc': $val *= 16; break;
-				case 'in': $val *= 96; break;
-				case 'mm': $val *= 3.78; break;
-				case 'cm': $val *= 37.8; break;
-				default: throw new InvalidArgumentException("Unknown input measure unit: ".htmlspecialchars($units, ENT_QUOTES));
-			}
-
-			switch ($out) {
-				case 'px': return round($val, 2);
-				case 'pt': return round($val / (96/72), 2);
-				case 'pc': return round($val / 16, 4);
-				case 'in': return round($val / 96, 4);
-				case 'mm': return round($val / 3.78, 6);
-				case 'cm': return round($val / 37.8, 6);
-				default: throw new InvalidArgumentException("Unknown output measure unit: ".htmlspecialchars($out, ENT_QUOTES));
-			}
+			$val = self::convertFromUnit($units, floatval(str_replace($units, '', $num)));
+			return self::convertToUnit($out, $val);
 		}
 		throw new InvalidArgumentException("Unknown measure value: ".htmlspecialchars($num, ENT_QUOTES));
+	}
+
+	/**
+	 *
+	 * @param string $unit
+	 * @param float $val
+	 * @return float
+	 * @throws InvalidArgumentException
+	 */
+	private static function convertFromUnit (string $unit, float $val): float {
+		switch ($unit) {
+			case 'em':
+			case 'px': return $val;
+			case 'pt': return $val *= 96/72;
+			case 'pc': return $val *= 16;
+			case 'in': return $val *= 96;
+			case 'mm': return $val *= 3.78;
+			case 'cm': return $val *= 37.8;
+		}
+		throw new InvalidArgumentException("Unknown input measure unit: ".htmlspecialchars($unit, ENT_QUOTES));
+	}
+
+	/**
+	 *
+	 * @param string $unit
+	 * @param float $val
+	 * @return float
+	 * @throws InvalidArgumentException
+	 */
+	private static function convertToUnit (string $unit, float $val): float {
+		switch ($unit) {
+			case 'em': return $val;
+			case 'px': return round($val, 2);
+			case 'pt': return round($val / (96/72), 2);
+			case 'pc': return round($val / 16, 4);
+			case 'in': return round($val / 96, 4);
+			case 'mm': return round($val / 3.78, 6);
+			case 'cm': return round($val / 37.8, 6);
+		}
+		throw new InvalidArgumentException("Unknown output measure unit: ".htmlspecialchars($unit, ENT_QUOTES));
 	}
 }
