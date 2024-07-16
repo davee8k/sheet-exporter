@@ -1,4 +1,5 @@
-<?php declare(strict_types=1);
+<?php
+declare(strict_types=1);
 
 namespace SheetExporter;
 
@@ -9,13 +10,14 @@ use ZipArchive;
 /**
  * Export to Ods
  */
-class ExporterOds extends Exporter {
-
+class ExporterOds extends Exporter
+{
 	/**
 	 * @param string $fileName
 	 * @throws RuntimeException
 	 */
-	public function __construct (string $fileName) {
+	public function __construct(string $fileName)
+	{
 		if (!class_exists('ZipArchive')) throw new RuntimeException('Missing ZipArchive extension for ODS.');
 		parent::__construct($fileName);
 	}
@@ -23,7 +25,8 @@ class ExporterOds extends Exporter {
 	/**
 	 * Create download content
 	 */
-	public function download (): void {
+	public function download(): void
+	{
 		$tempFile = $this->compile();
 		header('Content-Type: application/vnd.oasis.opendocument.spreadsheet; charset=utf-8');
 		header('Content-Disposition: attachment; filename="'.$this->fileName.'.ods"');
@@ -36,10 +39,11 @@ class ExporterOds extends Exporter {
 	 * @return string
 	 * @throws RuntimeException
 	 */
-	public function compile (): string {
+	public function compile(): string
+	{
 		$zip = new ZipArchive;
 		$tempFile = $this->createTemp();
-		$res = $zip->open($tempFile, ZipArchive::CREATE|ZipArchive::OVERWRITE);
+		$res = $zip->open($tempFile, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 		if ($res === true) {
 			$contentFile = 'content.xml';
 			$zip->addFromString('mimetype', $this->fileMime());
@@ -59,7 +63,8 @@ class ExporterOds extends Exporter {
 	 * @return string
 	 * @throws InvalidArgumentException
 	 */
-	private function fileSheet (): string {
+	private function fileSheet(): string
+	{
 		ob_start();
 		$defHeight = null;
 ?>
@@ -80,7 +85,7 @@ class ExporterOds extends Exporter {
 		}
 
 		// row styles
-		foreach ($this->styles as $mark=>$style) {
+		foreach ($this->styles as $mark => $style) {
 ?>
     <style:style style:name="tc_<?=$mark;?>" style:family="table-cell">
 <?php
@@ -101,7 +106,7 @@ class ExporterOds extends Exporter {
   <office:body>
     <office:spreadsheet>
 <?php
-		foreach ($this->sheets as $sid=>$sheet) {
+		foreach ($this->sheets as $sid => $sheet) {
 ?>
       <table:table table:name="<?=$sheet->getName();?>">
 <?php
@@ -126,10 +131,13 @@ class ExporterOds extends Exporter {
 	 * Print sheet header
 	 * @param Sheet $sheet
 	 */
-	private function printHeader (Sheet $sheet): void {
+	private function printHeader(Sheet $sheet): void
+	{
 		if (!empty($sheet->getHeaders())) {
 			echo '<table:table-row>';
-			foreach ($sheet->getHeaders() as $name) echo '<table:table-cell office:value-type="string"><text:p>'.self::xmlEntities($name).'</text:p></table:table-cell>';
+			foreach ($sheet->getHeaders() as $name) {
+				echo '<table:table-cell office:value-type="string"><text:p>'.self::xmlEntities($name).'</text:p></table:table-cell>';
+			}
 			echo "</table:table-row>\n";
 		}
 	}
@@ -140,9 +148,10 @@ class ExporterOds extends Exporter {
 	 * @param string|null $defHeight
 	 * @throws InvalidArgumentException
 	 */
-	private function printSheet (Sheet $sheet, ?string $defHeight): void {
+	private function printSheet(Sheet $sheet, ?string $defHeight): void
+	{
 		$skipPlan = [];
-		foreach ($sheet->getRows() as $num=>$row) {
+		foreach ($sheet->getRows() as $num => $row) {
 			$last = -1;
 			$move = 0;
 			$class = $sheet->getStyle($num);
@@ -152,7 +161,7 @@ class ExporterOds extends Exporter {
 			for ($j = 0; $j <= $move + $sheet->getColCount(); $j++) {
 				// insert empty cells under merged
 				if (isset($skipPlan[$num][$j])) {
-					echo '<table:covered-table-cell'.($skipPlan[$num][$j] > 1 ?' table:number-columns-repeated="'.$skipPlan[$num][$j].'"' : '').' />';
+					echo '<table:covered-table-cell'.($skipPlan[$num][$j] > 1 ? ' table:number-columns-repeated="'.$skipPlan[$num][$j].'"' : '').' />';
 					$move += $skipPlan[$num][$j];
 				}
 				if (isset($row[$j - $move]) && $last < ($j - $move)) {
@@ -171,14 +180,14 @@ class ExporterOds extends Exporter {
 	 * @param Sheet $sheet
 	 * @param string|int $sid
 	 */
-	private function printColWidths (Sheet $sheet, $sid): void {
+	private function printColWidths(Sheet $sheet, $sid): void
+	{
 		$count = count($sheet->getCols());
 		if ($count === 0) {
 ?>
         <table:table-column/>
 <?php
-		}
-		else {
+		} else {
 			$keys = array_keys($sheet->getCols());
 			foreach ($keys as $num) {
 ?>
@@ -197,10 +206,11 @@ class ExporterOds extends Exporter {
 	/**
 	 * Print columns styles
 	 */
-	private function printColStyles (): void {
+	private function printColStyles(): void
+	{
 		// columns widths
-		foreach ($this->sheets as $sid=>$sheet) {
-			foreach ($sheet->getCols() as $num=>$col) {
+		foreach ($this->sheets as $sid => $sheet) {
+			foreach ($sheet->getCols() as $num => $col) {
 ?>
     <style:style style:name="col_<?=$sid.'_'.$num;?>" style:family="table-column">
       <style:table-column-properties fo:break-before="auto" style:column-width="<?=self::convertSize($col, self::UNITS, 'mm');?>mm" />
@@ -227,7 +237,8 @@ class ExporterOds extends Exporter {
 	 * @param array<int, array<int, int>> $skipPlan
 	 * @return string
 	 */
-	private function getCell ($col, int $num, int $j, ?string $class, array &$skipPlan): string {
+	private function getCell($col, int $num, int $j, ?string $class, array &$skipPlan): string
+	{
 		if (isset($col['COLS']) && $col['COLS'] > 1 || isset($col['ROWS']) && $col['ROWS'] > 1) {
 			$cols = $col['COLS'] ?? 1;
 			$rows = $col['ROWS'] ?? 1;
@@ -243,8 +254,11 @@ class ExporterOds extends Exporter {
 			}
 		};
 
-		if (is_array($col))	return $this->getCellValue($col['VAL'] ?? '', $col['STYLE'] ?? $class, $col);
-		else if ($col !== null) return $this->getCellValue($col, $class);
+		if (is_array($col))	{
+			return $this->getCellValue($col['VAL'] ?? '', $col['STYLE'] ?? $class, $col);
+		} elseif ($col !== null) {
+			return $this->getCellValue($col, $class);
+		}
 		return '';
 	}
 
@@ -256,7 +270,8 @@ class ExporterOds extends Exporter {
 	 * @param array<string, mixed>|null $col
 	 * @return string
 	 */
-	private function getCellValue ($val, ?string $class = null, ?array $col = null): string {
+	private function getCellValue($val, ?string $class = null, ?array $col = null): string
+	{
 		return '<table:table-cell'.($class ? ' table:style-name="tc_'.$class.'"' : '').
 			' office:value-type='.(is_numeric($val) ? '"float" office:value="'.$val.'"' : '"string"').
 			(empty($col['FORMULA']) ? '' : ' table:formula="of:='.$this->reformatFormula($col['FORMULA']).'"').
@@ -272,12 +287,12 @@ class ExporterOds extends Exporter {
 	 * @return string|null
 	 * @throws InvalidArgumentException
 	 */
-	private function getRowHeight (?string $class, ?string $default): ?string {
+	private function getRowHeight(?string $class, ?string $default): ?string
+	{
 		if ($class) {
 			if (isset($this->styles[$class])) {
 				if (!empty($this->styles[$class]['HEIGHT'])) return 'ro_'.$class;
-			}
-			else {
+			} else {
 				throw new InvalidArgumentException('Missing style: '.htmlspecialchars((string) $class, ENT_QUOTES));
 			}
 		}
@@ -289,7 +304,8 @@ class ExporterOds extends Exporter {
 	 * @param string $formula
 	 * @return string
 	 */
-	private function reformatFormula (string $formula): string {
+	private function reformatFormula(string $formula): string
+	{
 		return (string) preg_replace_callback(
 				'/(\$?[A-Z]+\$?[0-9]+)((\:?)(\$?[A-Z]+\$?[0-9]+))?/',
 				function($arg) { return '[.'.$arg[1].(isset($arg[4]) ? $arg[3].'.'.$arg[4] : '').']'; },
@@ -302,7 +318,8 @@ class ExporterOds extends Exporter {
 	 * @param array<string, mixed> $style
 	 * @return string
 	 */
-	private function getStyle (array $style): string {
+	private function getStyle(array $style): string
+	{
 		$txt = '';
 		if (isset($style['FONT'])) {
 			$txt .= $this->getStyleFont($style['FONT']);
@@ -310,12 +327,11 @@ class ExporterOds extends Exporter {
 		if (isset($style['CELL'])) {
 			$txt .= '      <style:table-cell-properties'.(isset($style['CELL']['BACKGROUND']) ? ' fo:background-color="'.$style['CELL']['BACKGROUND'].'"' : '');
 			if ($this->isBorderStyle($style['CELL'], self::$borderStyles)) {
-				$txt.= $this->getBorderStyle($style['CELL']);
-			}
-			else {
-				foreach (self::$borderTypes as $key=>$mark) {
+				$txt .= $this->getBorderStyle($style['CELL']);
+			} else {
+				foreach (self::$borderTypes as $key => $mark) {
 					if (!empty($style['CELL'][$mark])) {
-						$txt.= $this->getBorderStyle($style['CELL'][$mark], '-'.$key);
+						$txt .= $this->getBorderStyle($style['CELL'][$mark], '-'.$key);
 					}
 				}
 			}
@@ -329,19 +345,30 @@ class ExporterOds extends Exporter {
 	 * @param array<string, mixed> $style
 	 * @return string
 	 */
-	private function getStyleFont (array $style): string {
+	private function getStyleFont(array $style): string
+	{
 		$txt = '      <style:text-properties';
-		if (isset($style['COLOR']))  $txt .= ' fo:color="'.$style['COLOR'].'"';
-		if (isset($style['WEIGHT']))  $txt .= ' fo:font-weight="'.$style['WEIGHT'].'" style:font-weight-asian="'.$style['WEIGHT'].'" style:font-weight-complex="'.$style['WEIGHT'].'"';
+		if (isset($style['COLOR'])) {
+			$txt .= ' fo:color="'.$style['COLOR'].'"';
+		}
+		if (isset($style['WEIGHT'])) {
+			$txt .= ' fo:font-weight="'.$style['WEIGHT'].'" style:font-weight-asian="'.$style['WEIGHT'].'" style:font-weight-complex="'.$style['WEIGHT'].'"';
+		}
 		if (isset($style['SIZE'])) {
 			if (is_numeric($style['SIZE'])) $style['SIZE'] .= self::UNITS;
 			$txt .= ' fo:font-size="'.$style['SIZE'].'" style:font-size-asian="'.$style['SIZE'].'" style:font-size-complex="'.$style['SIZE'].'"';
 		}
-		if (isset($style['FAMILY']))  $txt .= ' style:font-name="'.$style['FAMILY'].'" style:font-name-asian="'.$style['FAMILY'].'" style:font-name-complex="'.$style['FAMILY'].'"';
-		if (isset($style['BACKGROUND']))  $txt .= ' fo:background-color="'.$style['BACKGROUND'].'"';
+		if (isset($style['FAMILY'])) {
+			$txt .= ' style:font-name="'.$style['FAMILY'].'" style:font-name-asian="'.$style['FAMILY'].'" style:font-name-complex="'.$style['FAMILY'].'"';
+		}
+		if (isset($style['BACKGROUND'])) {
+			$txt .= ' fo:background-color="'.$style['BACKGROUND'].'"';
+		}
 		$txt .= " />\n";
 
-		if (isset($style['ALIGN'])) $txt .= '      <style:paragraph-properties fo:text-align="'.str_ireplace(['left','right'], ['start','end'], $style['ALIGN']).'" />'."\n";
+		if (isset($style['ALIGN'])) {
+			$txt .= '      <style:paragraph-properties fo:text-align="'.str_ireplace(['left','right'], ['start','end'], $style['ALIGN']).'" />'."\n";
+		}
 		return $txt;
 	}
 
@@ -351,7 +378,8 @@ class ExporterOds extends Exporter {
 	 * @param string $side
 	 * @return string
 	 */
-	private function getBorderStyle (array $style, string $side = ''): string {
+	private function getBorderStyle(array $style, string $side = ''): string
+	{
 		$txt = ' fo:border'.$side.'= "';
 		if (isset($style['WIDTH'])) $txt .= self::convertSize($style['WIDTH'], self::UNITS).self::UNITS.' ';
 		return $txt.($style['STYLE'] ?? 'solid').' '.($style['COLOR'] ?? static::$defColor).'"';
@@ -361,7 +389,8 @@ class ExporterOds extends Exporter {
 	 *
 	 * @return string
 	 */
-	private function fileStyles (): string {
+	private function fileStyles(): string
+	{
 		ob_start();
 ?>
 <office:document-styles xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0">
@@ -373,8 +402,12 @@ class ExporterOds extends Exporter {
     <style:style style:name="Default" style:family="table-cell" style:data-style-name="N0">
       <style:table-cell-properties style:vertical-align="automatic" fo:background-color="transparent" />
 <?php
-		if (!empty($this->defaultStyle)) echo $this->getStyle($this->defaultStyle);
-		if (empty($this->defaultStyle) || empty($this->defaultStyle['FONT']['COLOR'])) echo '      <style:text-properties fo:color="'.static::$defColor.'" />',"\n";
+		if (!empty($this->defaultStyle)) {
+			echo $this->getStyle($this->defaultStyle);
+		}
+		if (empty($this->defaultStyle) || empty($this->defaultStyle['FONT']['COLOR'])) {
+			echo '      <style:text-properties fo:color="'.static::$defColor.'" />',"\n";
+		}
 ?>
     </style:style>
   </office:styles>
@@ -390,7 +423,8 @@ class ExporterOds extends Exporter {
 	 * @param string $contentFile
 	 * @return string
 	 */
-	private function fileMetaInf (string $contentFile): string {
+	private function fileMetaInf(string $contentFile): string
+	{
 		ob_start();
 ?>
 <manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0">
@@ -409,7 +443,8 @@ class ExporterOds extends Exporter {
 	 * Return ODS mime type
 	 * @return string
 	 */
-	private function fileMime (): string {
+	private function fileMime(): string
+	{
 		return 'application/vnd.oasis.opendocument.spreadsheet';
 	}
 
@@ -418,7 +453,8 @@ class ExporterOds extends Exporter {
 	 * @param string $contentFile
 	 * @return string
 	 */
-	private function fileManifest (string $contentFile): string {
+	private function fileManifest(string $contentFile): string
+	{
 		ob_start();
 ?>
 <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
@@ -440,7 +476,8 @@ class ExporterOds extends Exporter {
 	 * Return ODS meta file content
 	 * @return string
 	 */
-	private function fileMeta (): string {
+	private function fileMeta(): string
+	{
 		ob_start();
 		$date = date('c');
 ?>

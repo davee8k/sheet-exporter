@@ -1,18 +1,20 @@
-<?php declare(strict_types=1);
+<?php
+declare(strict_types=1);
 
 use SheetExporter\Exporter;
 use SheetExporter\ExporterHtml;
-
 use PHPUnit\Framework\TestCase;
 
-class ExporterHtmlTest extends TestCase {
+class ExporterHtmlTest extends TestCase
+{
 	use BasicExporterTrait;
 
-	public function testExportBasic (): void {
+	public function testExportBasic(): void
+	{
 		$ex = new ExporterHtml('test');
 		$this->fillSheetBasic($ex);
 
-$txt = '<!DOCTYPE html>
+		$txt = '<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="cs" xml:lang="cs">
 <head>
 	<title>Export test</title>
@@ -44,11 +46,12 @@ $txt = '<!DOCTYPE html>
 		$ex->compile();
 	}
 
-	public function testExportComplex (): void {
+	public function testExportComplex(): void
+	{
 		$ex = new ExporterHtml('test');
 		$this->fillSheetComplex($ex);
 
-$txt = '<!DOCTYPE html>
+		$txt = '<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="cs" xml:lang="cs">
 <head>
 	<title>Export test</title>
@@ -122,11 +125,12 @@ $txt = '<!DOCTYPE html>
 		$ex->compile();
 	}
 
-	public function testExportFormula (): void {
+	public function testExportFormula(): void
+	{
 		$ex = new ExporterHtml('test');
 		$this->fillSheetFormula($ex);
 
-$txt = '<!DOCTYPE html>
+		$txt = '<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" lang="cs" xml:lang="cs">
 <head>
 	<title>Export test</title>

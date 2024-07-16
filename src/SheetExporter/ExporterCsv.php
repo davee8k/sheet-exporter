@@ -1,4 +1,5 @@
-<?php declare(strict_types=1);
+<?php
+declare(strict_types=1);
 
 namespace SheetExporter;
 
@@ -7,12 +8,14 @@ use InvalidArgumentException;
 /**
  * Export to CSV file
  */
-class ExporterCsv extends Exporter {
+class ExporterCsv extends Exporter
+{
 
 	/**
 	 * Create download content
 	 */
-	public function download (): void {
+	public function download(): void
+	{
 		header('Content-Type: text/csv; charset=utf-8');
 		header('Content-Disposition: attachment; filename="'.$this->fileName.'.csv"');
 		$this->compile();
@@ -23,7 +26,8 @@ class ExporterCsv extends Exporter {
 	 * @return string|null
 	 * @throws InvalidArgumentException
 	 */
-	public function compile (): ?string {
+	public function compile(): ?string
+	{
 		foreach ($this->sheets as $sheet) {
 			$this->printHeader($sheet);
 			$this->printSheet($sheet);
@@ -35,7 +39,8 @@ class ExporterCsv extends Exporter {
 	 * Print sheet header
 	 * @param Sheet $sheet
 	 */
-	private function printHeader (Sheet $sheet): void {
+	private function printHeader(Sheet $sheet): void
+	{
 		if (!empty($sheet->getHeaders())) {
 			foreach ($sheet->getHeaders() as $name) {
 				echo $this->getCellValue($name).',';
@@ -48,9 +53,10 @@ class ExporterCsv extends Exporter {
 	 * Print sheet content
 	 * @param Sheet $sheet
 	 */
-	private function printSheet (Sheet $sheet): void {
+	private function printSheet(Sheet $sheet): void
+	{
 		$skipPlan = [];
-		foreach ($sheet->getRows() as $num=>$row) {
+		foreach ($sheet->getRows() as $num => $row) {
 			$last = -1;
 			$move = 0;
 			for ($j = 0; $j <= $move + $sheet->getColCount(); $j++) {
@@ -77,7 +83,8 @@ class ExporterCsv extends Exporter {
 	 * @param array<int, array<int, int>> $skipPlan
 	 * @return string
 	 */
-	private function getCell ($col, int $num, int $pos, array &$skipPlan): string {
+	private function getCell($col, int $num, int $pos, array &$skipPlan): string
+	{
 		if (is_array($col)) {
 			if (isset($col['ROWS']) && $col['ROWS'] > 1) {
 				for ($i = 1; $i < $col['ROWS']; $i++) {
@@ -97,8 +104,9 @@ class ExporterCsv extends Exporter {
 	 * @param string|float|int|null $val
 	 * @return string
 	 */
-	private function getCellValue ($val): string {
-		if (is_numeric($val)) return (string)$val;
+	private function getCellValue($val): string
+	{
+		if (is_numeric($val)) return (string) $val;
 		if (!$val) return '';
 		$str = str_replace('"', '""', $val);
 		if (strpos($str, ',') !== false || strpos($str, '"') !== false) return '"'.$str.'"';

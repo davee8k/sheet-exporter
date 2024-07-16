@@ -1,18 +1,20 @@
-<?php declare(strict_types=1);
+<?php
+declare(strict_types=1);
 
 use SheetExporter\ExporterXlsx;
-
 use PHPUnit\Framework\TestCase;
 
-class ExporterXlsxTest extends TestCase {
+class ExporterXlsxTest extends TestCase
+{
 	use BasicExporterTrait;
 
-	public function testExportBasic (): void {
+	public function testExportBasic(): void
+	{
 		$ex = new ExporterXlsx('test');
 		$this->fillSheetBasic($ex);
 		$sheets = $ex->getSheets();
 
-$txt = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+		$txt = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheetFormatPr defaultRowHeight="20" />
   <sheetData>
     <row r="1"><c r="A1" t="inlineStr"><is><t>one with &apos; and &quot;</t></is></c></row>
@@ -32,7 +34,7 @@ $txt = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/m
 ';
 		$this->assertEquals($txt, $this->callPrivateMethod($ex, 'fileSheet', [reset($sheets)]));
 
-$txt = '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+		$txt = '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <fonts count="1">
     <font>
       <sz val="20" />
@@ -69,7 +71,7 @@ $txt = '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/
 ';
 		$this->assertEquals($txt, $this->callPrivateMethod($ex, 'fileStyles'));
 
-$txt = '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+		$txt = '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheets>
     <sheet name="List" sheetId="1" r:id="rId2" />
   </sheets>
@@ -77,7 +79,7 @@ $txt = '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/ma
 ';
 		$this->assertEquals($txt, $this->callPrivateMethod($ex, 'fileWorkbook'));
 
-$txt = '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+		$txt = '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml" />
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml" />
   <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
@@ -87,20 +89,21 @@ $txt = '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-typ
 ';
 		$this->assertEquals($txt, $this->callPrivateMethod($ex, 'fileContentTypes'));
 
-$txt = '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+		$txt = '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml" Id="rId1" />
   <Relationship Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="/xl/worksheets/sheet1.xml" Id="rId2" />
 </Relationships>
 ';
-		$this->assertEquals($txt, $this->callPrivateMethod($ex, 'fileRelationships', ['worksheet', $this->callPrivateMethod($ex, 'getSheetRelationships') ]));
+		$this->assertEquals($txt, $this->callPrivateMethod($ex, 'fileRelationships', ['worksheet', $this->callPrivateMethod($ex, 'getSheetRelationships')]));
 	}
 
-	public function testExportComplex (): void {
+	public function testExportComplex(): void
+	{
 		$ex = new ExporterXlsx('test');
 		$this->fillSheetComplex($ex);
 		$sheets = $ex->getSheets();
 
-$txt = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+		$txt = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheetFormatPr defaultRowHeight="" />
   <cols>
     <col collapsed="false" hidden="false" min="1" max="1" width="9.52107852" />
@@ -123,7 +126,7 @@ $txt = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/m
 ';
 		$this->assertEquals($txt, $this->callPrivateMethod($ex, 'fileSheet', [reset($sheets)]));
 
-$txt = '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+		$txt = '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <fonts count="3">
     <font>
       <sz val="10" />
@@ -202,12 +205,13 @@ $txt = '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/
 		$this->assertEquals($txt, $this->callPrivateMethod($ex, 'fileStyles'));
 	}
 
-	public function testExportFormula (): void {
+	public function testExportFormula(): void
+	{
 		$ex = new ExporterXlsx('test');
 		$this->fillSheetFormula($ex);
 		$sheets = $ex->getSheets();
 
-$txt = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+		$txt = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheetFormatPr defaultRowHeight="" />
   <sheetData>
     <row r="1"><c r="A1" t="n"><v>1</v></c><c r="B1" t="n"><v>2</v></c><c r="C1" t="n"><v>3</v></c><c r="D1" t="n"><v>4</v></c><c r="E1" t="inlineStr"><is><t>test</t></is></c></row>
